@@ -1,0 +1,124 @@
+version: "3.7"
+
+services:
+  # PostgreSQL для Easy Panel (отдельная БД)
+  easy_panel_postgres:
+    image: postgres:14-alpine
+    container_name: easy_panel_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${EASY_PANEL_DB_NAME:-easy_panel_production}
+      POSTGRES_USER: ${EASY_PANEL_DB_USER:-easy_panel_user}
+      POSTGRES_PASSWORD: ${EASY_PANEL_DB_PASSWORD}
+      TZ: Europe/Moscow
+      PGTZ: Europe/Moscow
+    volumes:
+      - easy_panel_postgres_data:/var/lib/postgresql/data
+    networks:
+      - easy_panel_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EASY_PANEL_DB_USER:-easy_panel_user} -d ${EASY_PANEL_DB_NAME:-easy_panel_production}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Adminer для управления БД Easy Panel
+  easy_panel_adminer:
+    image: adminer:latest
+    container_name: easy_panel_adminer
+    restart: always
+    environment:
+      ADMINER_DEFAULT_SERVER: easy_panel_postgres
+      ADMINER_DESIGN: nette
+    depends_on:
+      - easy_panel_postgres
+    networks:
+      - easy_panel_network
+      - default
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.easy_panel_adminer.rule=Host(`db.panel.${DOMAIN_NAME}`)
+      - traefik.http.routers.easy_panel_adminer.tls=true
+      - traefik.http.routers.easy_panel_adminer.entrypoints=web,websecure
+      - traefik.http.routers.easy_panel_adminer.tls.certresolver=mytlschallenge
+      - traefik.http.services.easy_panel_adminer.loadbalancer.server.port=8080
+
+  # Backend Rails API
+  easy_panel_backend:
+    image: ghcr.io/rubybosskirill/easy_panel/backend:latest
+    container_name: easy_panel_backend
+    restart: always
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgresql://${EASY_PANEL_DB_USER:-easy_panel_user}:${EASY_PANEL_DB_PASSWORD}@easy_panel_postgres:5432/${EASY_PANEL_DB_NAME:-easy_panel_production}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: ${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY}
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: ${ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY}
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: ${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT}
+      RAILS_LOG_TO_STDOUT: "true"
+      RAILS_SERVE_STATIC_FILES: "true"
+    depends_on:
+      easy_panel_postgres:
+        condition: service_healthy
+    networks:
+      - easy_panel_network
+      - default
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.easy_panel_backend.rule=Host(`api.panel.${DOMAIN_NAME}`)
+      - traefik.http.routers.easy_panel_backend.tls=true
+      - traefik.http.routers.easy_panel_backend.entrypoints=web,websecure
+      - traefik.http.routers.easy_panel_backend.tls.certresolver=mytlschallenge
+      - traefik.http.services.easy_panel_backend.loadbalancer.server.port=5000
+      # CORS headers
+      - traefik.http.middlewares.easy_panel_cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS,PATCH
+      - traefik.http.middlewares.easy_panel_cors.headers.accesscontrolalloworiginlist=https://panel.${DOMAIN_NAME}
+      - traefik.http.middlewares.easy_panel_cors.headers.accesscontrolallowcredentials=true
+      - traefik.http.middlewares.easy_panel_cors.headers.accesscontrolallowheaders=Content-Type,Authorization
+      - traefik.http.middlewares.easy_panel_cors.headers.accesscontrolmaxage=100
+      - traefik.http.routers.easy_panel_backend.middlewares=easy_panel_cors@docker
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React
+  easy_panel_frontend:
+    image: ghcr.io/rubybosskirill/easy_panel/frontend:latest
+    container_name: easy_panel_frontend
+    restart: always
+    environment:
+      REACT_APP_API_URL: https://api.panel.${DOMAIN_NAME}
+    networks:
+      - default
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.easy_panel_frontend.rule=Host(`panel.${DOMAIN_NAME}`)
+      - traefik.http.routers.easy_panel_frontend.tls=true
+      - traefik.http.routers.easy_panel_frontend.entrypoints=web,websecure
+      - traefik.http.routers.easy_panel_frontend.tls.certresolver=mytlschallenge
+      - traefik.http.services.easy_panel_frontend.loadbalancer.server.port=80
+      # Security headers
+      - traefik.http.middlewares.easy_panel_security.headers.browserXSSFilter=true
+      - traefik.http.middlewares.easy_panel_security.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.easy_panel_security.headers.forceSTSHeader=true
+      - traefik.http.middlewares.easy_panel_security.headers.SSLRedirect=true
+      - traefik.http.middlewares.easy_panel_security.headers.STSSeconds=315360000
+      - traefik.http.middlewares.easy_panel_security.headers.STSIncludeSubdomains=true
+      - traefik.http.middlewares.easy_panel_security.headers.STSPreload=true
+      - traefik.http.routers.easy_panel_frontend.middlewares=easy_panel_security@docker
+
+networks:
+  # Внутренняя сеть Easy Panel (изолированная)
+  easy_panel_network:
+    driver: bridge
+    internal: false
+  # Подключение к сети Traefik (для доступа извне)
+  default:
+    external: true
+    name: root_default
+
+volumes:
+  easy_panel_postgres_data:
+    driver: local
