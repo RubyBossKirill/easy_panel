@@ -35,6 +35,7 @@ services:
       - easy_panel_network
     labels:
       - traefik.enable=true
+      - traefik.docker.network=root_default
       - traefik.http.routers.easy_panel_adminer.rule=Host(`db.panel.${DOMAIN_NAME}`)
       - traefik.http.routers.easy_panel_adminer.tls=true
       - traefik.http.routers.easy_panel_adminer.entrypoints=web,websecure
@@ -67,6 +68,7 @@ services:
       - easy_panel_network
     labels:
       - traefik.enable=true
+      - traefik.docker.network=root_default
       - traefik.http.routers.easy_panel_backend.rule=Host(`api.panel.${DOMAIN_NAME}`)
       - traefik.http.routers.easy_panel_backend.tls=true
       - traefik.http.routers.easy_panel_backend.entrypoints=web,websecure
@@ -96,6 +98,7 @@ services:
       - default
     labels:
       - traefik.enable=true
+      - traefik.docker.network=root_default
       - traefik.http.routers.easy_panel_frontend.rule=Host(`panel.${DOMAIN_NAME}`)
       - traefik.http.routers.easy_panel_frontend.tls=true
       - traefik.http.routers.easy_panel_frontend.entrypoints=web,websecure
