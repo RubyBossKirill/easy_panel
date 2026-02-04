@@ -48,9 +48,4 @@ test:
 #   DATABASE_URL="postgres://myuser:mypass@localhost/somedatabase"
 #
 production:
-  <<: *default
-  database: easy_panel_production
-  username: easy_panel_user
-  password: easypass123
-  host: easy_panel_postgres
-  port: 5432
+  url: <%= ENV['DATABASE_URL'] %>
