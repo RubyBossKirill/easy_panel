@@ -1,0 +1,52 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+docker-compose.override.yml
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.sqlite3
+*.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Dependencies
+node_modules/
+vendor/bundle/
+
+# Build outputs
+build/
+dist/
+out/
+
+# Environment variables (production secrets)
+.env.production
+.env.production.local
+
+# Encryption keys (should be in secrets management)
+config/master.key
+config/credentials/production.key
+
+# Uploaded files
+public/uploads/
+storage/

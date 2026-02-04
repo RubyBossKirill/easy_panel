@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:14-alpine
+    container_name: easy_panel_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: easy_panel_development
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Rails Backend API
+  backend:
+    build:
+      context: ./easy-panel-backend
+      dockerfile: Dockerfile.dev
+    container_name: easy_panel_backend
+    command: bash -c "rm -f tmp/pids/server.pid && rails db:create && rails db:migrate && rails db:seed && rails server -b 0.0.0.0 -p 5000"
+    ports:
+      - "5001:5000"
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: easy_panel_development
+      RAILS_ENV: development
+    volumes:
+      - ./easy-panel-backend:/app
+      - backend_bundle:/usr/local/bundle
+    depends_on:
+      db:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./easy-panel
+      dockerfile: Dockerfile.dev
+    container_name: easy_panel_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:5001/api/v1
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./easy-panel:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    stdin_open: true
+    tty: true
+
+volumes:
+  postgres_data:
+  backend_bundle:
