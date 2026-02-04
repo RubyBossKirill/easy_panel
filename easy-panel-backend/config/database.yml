@@ -49,4 +49,8 @@ test:
 #
 production:
   <<: *default
-  url: <%= ENV['DATABASE_URL'] %>
+  database: <%= ENV.fetch("POSTGRES_DB") { "easy_panel_production" } %>
+  username: <%= ENV.fetch("POSTGRES_USER") { "easy_panel_user" } %>
+  password: <%= ENV.fetch("POSTGRES_PASSWORD") { "easypass123" } %>
+  host: <%= ENV.fetch("POSTGRES_HOST") { "easy_panel_postgres" } %>
+  port: <%= ENV.fetch("POSTGRES_PORT") { 5432 } %>
