@@ -1,5 +1,3 @@
-version: "3.7"
-
 services:
   # PostgreSQL для Easy Panel (отдельная БД)
   easy_panel_postgres:
