@@ -65,13 +65,13 @@ jobs:
 
             # Pull latest images
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker-compose -f docker-compose.server.yml --env-file .env.easy-panel pull
+            docker compose -f docker-compose.server.yml --env-file .env.easy-panel pull
 
             # Run migrations
             docker exec easy_panel_backend rails db:migrate || true
 
             # Restart services with zero downtime
-            docker-compose -f docker-compose.server.yml --env-file .env.easy-panel up -d --remove-orphans
+            docker compose -f docker-compose.server.yml --env-file .env.easy-panel up -d --remove-orphans
 
             # Clean up old images
             docker image prune -f

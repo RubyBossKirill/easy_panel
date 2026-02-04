@@ -59,7 +59,7 @@ fi
 success "Конфигурационные файлы найдены"
 
 echo "🔄 Шаг 3: Остановка старых контейнеров (если есть)..."
-docker-compose -f docker-compose.server.yml --env-file .env.easy-panel down || true
+docker compose -f docker-compose.server.yml --env-file .env.easy-panel down || true
 success "Старые контейнеры остановлены"
 
 echo "🗑️ Шаг 4: Удаление старых образов..."
@@ -67,11 +67,11 @@ docker image prune -f || true
 success "Старые образы удалены"
 
 echo "⬇️ Шаг 5: Загрузка новых образов..."
-docker-compose -f docker-compose.server.yml --env-file .env.easy-panel pull
+docker compose -f docker-compose.server.yml --env-file .env.easy-panel pull
 success "Образы загружены"
 
 echo "🏗️ Шаг 6: Запуск контейнеров..."
-docker-compose -f docker-compose.server.yml --env-file .env.easy-panel up -d
+docker compose -f docker-compose.server.yml --env-file .env.easy-panel up -d
 success "Контейнеры запущены"
 
 echo "⏳ Ожидание запуска PostgreSQL..."
@@ -109,7 +109,7 @@ echo "   Manager:  manager@test.com / password"
 echo "   Employee: employee@test.com / password"
 echo ""
 echo "📊 Проверка статуса контейнеров:"
-docker-compose -f docker-compose.server.yml --env-file .env.easy-panel ps
+docker compose -f docker-compose.server.yml --env-file .env.easy-panel ps
 echo ""
 echo "📝 Логи можно посмотреть командой:"
-echo "   docker-compose -f docker-compose.server.yml --env-file .env.easy-panel logs -f [имя_сервиса]"
+echo "   docker compose -f docker-compose.server.yml --env-file .env.easy-panel logs -f [имя_сервиса]"
