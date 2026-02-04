@@ -59,7 +59,4 @@ test:
 # for a full overview on how database connection configuration can be specified.
 #
 production:
-  <<: *default
-  database: easy_panel_backend_production
-  username: easy_panel_backend
-  password: <%= ENV["EASY_PANEL_BACKEND_DATABASE_PASSWORD"] %>
+  url: <%= ENV["DATABASE_URL"] %>
