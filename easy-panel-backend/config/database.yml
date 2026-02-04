@@ -56,9 +56,4 @@ test:
 #     url: <%= ENV["MY_APP_DATABASE_URL"] %>
 #
 production:
-  <<: *default
-  database: <%= ENV.fetch("DATABASE_NAME") { "easy_panel_production" } %>
-  username: <%= ENV.fetch("DATABASE_USER") { "easy_panel_user" } %>
-  password: <%= ENV["DATABASE_PASSWORD"] %>
-  host: <%= ENV.fetch("DATABASE_HOST") { "easy_panel_postgres" } %>
-  port: <%= ENV.fetch("DATABASE_PORT") { 5432 } %>
+  url: <%= ENV["DATABASE_URL"] %>
