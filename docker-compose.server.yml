@@ -93,7 +93,7 @@ services:
     container_name: easy_panel_frontend
     restart: always
     environment:
-      REACT_APP_API_URL: https://api.panel.${DOMAIN_NAME}
+      REACT_APP_API_URL: https://api.panel.${DOMAIN_NAME}/api/v1
     networks:
       - default
     labels:

@@ -48,7 +48,7 @@ jobs:
           file: ./easy-panel/Dockerfile
           push: true
           build-args: |
-            REACT_APP_API_URL=https://api.panel.bulatova-psy.ru
+            REACT_APP_API_URL=https://api.panel.bulatova-psy.ru/api/v1
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:buildcache,mode=max
