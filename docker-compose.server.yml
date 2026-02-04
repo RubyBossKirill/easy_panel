@@ -31,8 +31,8 @@ services:
     depends_on:
       - easy_panel_postgres
     networks:
-      - easy_panel_network
       - default
+      - easy_panel_network
     labels:
       - traefik.enable=true
       - traefik.http.routers.easy_panel_adminer.rule=Host(`db.panel.${DOMAIN_NAME}`)
@@ -63,8 +63,8 @@ services:
       easy_panel_postgres:
         condition: service_healthy
     networks:
-      - easy_panel_network
       - default
+      - easy_panel_network
     labels:
       - traefik.enable=true
       - traefik.http.routers.easy_panel_backend.rule=Host(`api.panel.${DOMAIN_NAME}`)
