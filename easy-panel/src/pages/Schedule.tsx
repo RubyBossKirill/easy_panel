@@ -63,11 +63,13 @@ const Schedule: React.FC = () => {
         timeSlotsService.getAll({ date: selectedDate }),
         appointmentsService.getAll({ from_date: selectedDate, to_date: selectedDate }),
       ]);
-      setTimeSlots(slotsData);
-      setAppointments(appointmentsData);
+      setTimeSlots(slotsData || []);
+      setAppointments(appointmentsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Ошибка загрузки данных');
+      setTimeSlots([]);
+      setAppointments([]);
     } finally {
       setLoading(false);
     }
@@ -76,9 +78,10 @@ const Schedule: React.FC = () => {
   const loadClients = async () => {
     try {
       const data = await clientsService.getAll();
-      setClients(data);
+      setClients(data || []);
     } catch (error) {
       console.error('Error loading clients:', error);
+      setClients([]);
     }
   };
 

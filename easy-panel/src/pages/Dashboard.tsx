@@ -71,7 +71,7 @@ const Dashboard: React.FC = () => {
       setStats(statsData);
 
       // Sort appointments by time and get next 3
-      const sortedAppointments = appointmentsData
+      const sortedAppointments = (appointmentsData || [])
         .filter(a => a.status !== 'cancelled' && a.status !== 'completed')
         .sort((a, b) => {
           const dateTimeA = new Date(`${a.date}T${a.time}`);
@@ -84,6 +84,8 @@ const Dashboard: React.FC = () => {
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error('Ошибка загрузки данных');
+      setStats(null);
+      setUpcomingAppointments([]);
     } finally {
       setLoading(false);
     }
