@@ -13,6 +13,9 @@ Rails.application.routes.draw do
       post 'auth/logout', to: 'auth#logout'
       get 'auth/me', to: 'auth#me'
 
+      # Dashboard
+      get 'dashboard/stats', to: 'dashboard#stats'
+
       # Resources
       resources :users, only: %i[index show create update destroy]
       resources :roles, only: %i[index show create update destroy]

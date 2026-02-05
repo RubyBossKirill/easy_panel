@@ -1,59 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../utils/auth';
 import { hasPermission } from '../utils/permissions';
 import { DEFAULT_ROLES } from '../utils/permissions';
-
-const stats = [
-  {
-    title: 'Записи сегодня',
-    value: '8',
-    icon: '📅',
-    color: 'bg-primary text-white',
-  },
-  {
-    title: 'Всего клиентов',
-    value: '156',
-    icon: '👥',
-    color: 'bg-green-600 text-white',
-  },
-  {
-    title: 'Завершенные встречи',
-    value: '142',
-    icon: '✅',
-    color: 'bg-blue-600 text-white',
-  },
-  {
-    title: 'Отмененные',
-    value: '3',
-    icon: '⚠️',
-    color: 'bg-orange-400 text-white',
-  },
-];
-
-const upcomingAppointments = [
-  {
-    id: 1,
-    clientName: 'Иван Петров',
-    time: '14:00',
-    service: 'Консультация',
-    status: 'confirmed',
-  },
-  {
-    id: 2,
-    clientName: 'Мария Сидорова',
-    time: '15:30',
-    service: 'Первичная встреча',
-    status: 'pending',
-  },
-  {
-    id: 3,
-    clientName: 'Алексей Козлов',
-    time: '17:00',
-    service: 'Консультация',
-    status: 'confirmed',
-  },
-];
+import { dashboardService } from '../services/dashboardService';
+import { appointmentsService } from '../services/appointmentsService';
+import { timeSlotsService } from '../services/timeSlotsService';
+import { DashboardStats } from '../types/dashboard';
+import { Appointment } from '../types/appointment';
+import toast from 'react-hot-toast';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -83,6 +38,10 @@ const Dashboard: React.FC = () => {
   const canManageSchedule = hasPermission(user, DEFAULT_ROLES, 'manage_schedule');
 
   const navigate = useNavigate();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(false);
+
   const [showAddTimeModal, setShowAddTimeModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
@@ -94,6 +53,41 @@ const Dashboard: React.FC = () => {
     push: true,
     reminderTime: '15',
   });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [statsData, appointmentsData] = await Promise.all([
+        dashboardService.getStats(),
+        appointmentsService.getAll({
+          from_date: new Date().toISOString().split('T')[0],
+        }),
+      ]);
+
+      setStats(statsData);
+
+      // Sort appointments by time and get next 3
+      const sortedAppointments = appointmentsData
+        .filter(a => a.status !== 'cancelled' && a.status !== 'completed')
+        .sort((a, b) => {
+          const dateTimeA = new Date(`${a.date}T${a.time}`);
+          const dateTimeB = new Date(`${b.date}T${b.time}`);
+          return dateTimeA.getTime() - dateTimeB.getTime();
+        })
+        .slice(0, 3);
+
+      setUpcomingAppointments(sortedAppointments);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast.error('Ошибка загрузки данных');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddTime = () => {
     setShowAddTimeModal(true);
@@ -107,12 +101,29 @@ const Dashboard: React.FC = () => {
     setShowNotificationsModal(true);
   };
 
-  const handleSaveTimeSlot = () => {
-    console.log('Adding time slot:', { selectedDate, selectedTime, duration });
-    setShowAddTimeModal(false);
-    setSelectedDate('');
-    setSelectedTime('');
-    setDuration('60');
+  const handleSaveTimeSlot = async () => {
+    if (!selectedDate || !selectedTime) {
+      toast.error('Заполните все поля');
+      return;
+    }
+
+    try {
+      await timeSlotsService.create({
+        date: selectedDate,
+        time: selectedTime,
+        duration: Number(duration),
+        available: true,
+      });
+
+      toast.success('Временной слот создан');
+      setShowAddTimeModal(false);
+      setSelectedDate('');
+      setSelectedTime('');
+      setDuration('60');
+    } catch (error: any) {
+      console.error('Error creating time slot:', error);
+      toast.error(error.response?.data?.error || 'Ошибка создания слота');
+    }
   };
 
   const handleSaveNotifications = () => {
@@ -136,38 +147,73 @@ const Dashboard: React.FC = () => {
       <h1 className="text-3xl font-bold mb-6">Панель управления</h1>
 
       {/* Статистика */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`rounded-xl shadow p-5 flex items-center justify-between ${stat.color}`}>
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">Загрузка...</div>
+      ) : stats ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="rounded-xl shadow p-5 flex items-center justify-between bg-primary text-white">
             <div>
-              <div className="text-sm opacity-80 mb-1">{stat.title}</div>
-              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className="text-sm opacity-80 mb-1">Записи сегодня</div>
+              <div className="text-2xl font-bold">{stats.today_appointments}</div>
             </div>
-            <div className="text-4xl">{stat.icon}</div>
+            <div className="text-4xl">📅</div>
           </div>
-        ))}
-      </div>
+
+          <div className="rounded-xl shadow p-5 flex items-center justify-between bg-green-600 text-white">
+            <div>
+              <div className="text-sm opacity-80 mb-1">Всего клиентов</div>
+              <div className="text-2xl font-bold">{stats.total_clients}</div>
+            </div>
+            <div className="text-4xl">👥</div>
+          </div>
+
+          <div className="rounded-xl shadow p-5 flex items-center justify-between bg-blue-600 text-white">
+            <div>
+              <div className="text-sm opacity-80 mb-1">Завершенные встречи</div>
+              <div className="text-2xl font-bold">{stats.completed_appointments}</div>
+            </div>
+            <div className="text-4xl">✅</div>
+          </div>
+
+          <div className="rounded-xl shadow p-5 flex items-center justify-between bg-orange-400 text-white">
+            <div>
+              <div className="text-sm opacity-80 mb-1">Отмененные</div>
+              <div className="text-2xl font-bold">{stats.cancelled_appointments}</div>
+            </div>
+            <div className="text-4xl">⚠️</div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Ближайшие записи */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Ближайшие записи</h2>
-          <ul>
-            {upcomingAppointments.map((a) => (
-              <li key={a.id} className="flex items-center justify-between border-b last:border-b-0 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-xl font-bold">
-                    {a.clientName[0]}
-                  </div>
-                  <div>
-                    <div className="font-medium">{a.clientName}</div>
-                    <div className="text-sm text-gray-500">{a.time} — {a.service}</div>
-                  </div>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(a.status)}`}>{getStatusText(a.status)}</span>
-              </li>
-            ))}
-          </ul>
+          {loading ? (
+            <p className="text-gray-500">Загрузка...</p>
+          ) : upcomingAppointments.length === 0 ? (
+            <p className="text-gray-500">Нет запланированных записей</p>
+          ) : (
+            <ul>
+              {upcomingAppointments.map((a) => {
+                const clientName = a.client?.name || 'Неизвестный клиент';
+                return (
+                  <li key={a.id} className="flex items-center justify-between border-b last:border-b-0 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center text-xl font-bold">
+                        {clientName[0]}
+                      </div>
+                      <div>
+                        <div className="font-medium">{clientName}</div>
+                        <div className="text-sm text-gray-500">{a.time} — {a.service || 'Консультация'}</div>
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(a.status)}`}>{getStatusText(a.status)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
         
         {/* Быстрые действия */}
