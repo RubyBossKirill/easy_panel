@@ -1,87 +1,86 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from '../utils/auth';
-import { hasPermission } from '../utils/permissions';
-import { DEFAULT_ROLES } from '../utils/permissions';
-
-interface TimeSlot {
-  id: number;
-  time: string;
-  duration: string;
-  clientName?: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  email?: string;
-  telegram?: string;
-}
-
-// Парсинг строки 'YYYY-MM-DD' в локальный объект Date
-function parseLocalDate(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-
-const initialSlotsByDate: { [date: string]: TimeSlot[] } = {
-  '2025-07-13': [
-    {
-      id: 1,
-      time: '15:59',
-      duration: '60',
-      clientName: 'Анна Петрова',
-      firstName: 'Анна',
-      lastName: 'Петрова',
-      phone: '+7 999 123-45-67',
-      email: 'anna.petrov@example.com',
-      telegram: 'https://t.me/annapetrov',
-    },
-    {
-      id: 2,
-      time: '17:00',
-      duration: '60',
-    },
-  ],
-  '2025-07-14': [
-    {
-      id: 3,
-      time: '10:00',
-      duration: '30',
-      clientName: 'Михаил Сидоров',
-      firstName: 'Михаил',
-      lastName: 'Сидоров',
-      phone: '+7 999 234-56-78',
-      email: 'm.sidorov@example.com',
-      telegram: 'https://t.me/mikesidorov',
-    },
-    {
-      id: 4,
-      time: '11:00',
-      duration: '60',
-    },
-  ],
-};
+import { hasPermission, DEFAULT_ROLES } from '../utils/permissions';
+import { timeSlotsService } from '../services/timeSlotsService';
+import { appointmentsService } from '../services/appointmentsService';
+import { clientsService } from '../services/clientsService';
+import { TimeSlot } from '../types/timeSlot';
+import { Appointment } from '../types/appointment';
+import { Client } from '../types/client';
+import toast from 'react-hot-toast';
 
 const Schedule: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [showTimeModal, setShowTimeModal] = useState(false);
-  const [newTimeSlot, setNewTimeSlot] = useState({ time: '', duration: '60' });
-  const [slotsByDate, setSlotsByDate] = useState<{ [date: string]: TimeSlot[] }>(initialSlotsByDate);
-  const [slotIdCounter, setSlotIdCounter] = useState(5);
-  const [error, setError] = useState('');
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [clientInfo, setClientInfo] = useState<TimeSlot | null>(null);
-  const navigate = useNavigate();
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Модальные окна
+  const [showBulkCreateModal, setShowBulkCreateModal] = useState(false);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
+
+  // Форма массового создания слотов
+  const [bulkForm, setBulkForm] = useState({
+    start_time: '09:00',
+    end_time: '18:00',
+    duration: 60,
+    break_duration: 0,
+  });
+
+  // Форма записи на прием
+  const [appointmentForm, setAppointmentForm] = useState({
+    client_id: 0,
+    service: '',
+    notes: '',
+  });
+
   const user = getCurrentUser();
   if (!user) return null;
 
   const canManageSchedule = hasPermission(user, DEFAULT_ROLES, 'manage_schedule');
-  const canViewAllSchedules = hasPermission(user, DEFAULT_ROLES, 'manage_all_clients');
 
   if (!canManageSchedule) {
     return <div className="p-8 text-red-600 font-bold text-center text-xl">Нет доступа к расписанию</div>;
   }
+
+  useEffect(() => {
+    if (selectedDate) {
+      loadData();
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    loadClients();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [slotsData, appointmentsData] = await Promise.all([
+        timeSlotsService.getAll({ date: selectedDate }),
+        appointmentsService.getAll({ from_date: selectedDate, to_date: selectedDate }),
+      ]);
+      setTimeSlots(slotsData);
+      setAppointments(appointmentsData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast.error('Ошибка загрузки данных');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadClients = async () => {
+    try {
+      const data = await clientsService.getAll();
+      setClients(data);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
 
   // Календарь
   const getDaysInMonth = (date: Date) => {
@@ -96,325 +95,338 @@ const Schedule: React.FC = () => {
     for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
     return days;
   };
-  const days = getDaysInMonth(currentDate);
 
   const formatDate = (date: Date) => {
-    // Формат YYYY-MM-DD
     const y = date.getFullYear();
     const m = (date.getMonth() + 1).toString().padStart(2, '0');
     const d = date.getDate().toString().padStart(2, '0');
     return `${y}-${m}-${d}`;
   };
-  const formatDisplayDate = (dateStr: string) => {
-    const date = parseLocalDate(dateStr);
-    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  };
-  const getDayName = (date: Date) => date.toLocaleDateString('ru-RU', { weekday: 'short' });
+
   const isToday = (date: Date) => {
     const today = new Date();
     return date.getFullYear() === today.getFullYear() &&
       date.getMonth() === today.getMonth() &&
       date.getDate() === today.getDate();
   };
+
   const isSelected = (date: Date) => formatDate(date) === selectedDate;
+
   const handleDateClick = (date: Date) => {
     setSelectedDate(formatDate(date));
-    setError('');
-  };
-
-  // Добавление слота
-  const handleAddTimeSlot = () => {
-    if (selectedDate && newTimeSlot.time) {
-      setSlotsByDate(prev => {
-        const prevSlots = prev[selectedDate] || [];
-        return {
-          ...prev,
-          [selectedDate]: [...prevSlots, { id: slotIdCounter, ...newTimeSlot }]
-        };
-      });
-      setSlotIdCounter(id => id + 1);
-      setShowTimeModal(false);
-      setNewTimeSlot({ time: '', duration: '60' });
-      setError('');
-    }
-  };
-
-  // Удаление слота
-  const handleDeleteSlot = (slotId: number) => {
-    setSlotsByDate(prev => ({
-      ...prev,
-      [selectedDate]: (prev[selectedDate] || []).filter(slot => slot.id !== slotId)
-    }));
-  };
-
-  // Тестовая функция: занять слот (для демонстрации)
-  const handleOccupySlot = (slotId: number) => {
-    const firstName = prompt('Имя клиента:', 'Иван');
-    if (!firstName) return;
-    const lastName = prompt('Фамилия клиента:', 'Клиентов');
-    if (!lastName) return;
-    const phone = prompt('Телефон:', '+7 999 000-00-00') || '';
-    const email = prompt('Email:', 'client@example.com') || '';
-    const telegram = prompt('Ссылка на Telegram:', 'https://t.me/username') || '';
-    setSlotsByDate(prev => ({
-      ...prev,
-      [selectedDate]: (prev[selectedDate] || []).map(slot =>
-        slot.id === slotId
-          ? {
-              ...slot,
-              clientName: `${firstName} ${lastName}`,
-              firstName,
-              lastName,
-              phone,
-              email,
-              telegram,
-            }
-          : slot
-      )
-    }));
-  };
-
-  // Открыть инфо о клиенте
-  const handleShowClientInfo = (slot: TimeSlot) => {
-    setClientInfo(slot);
-  };
-
-  // Сохранение расписания
-  const handleSaveSchedule = () => {
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      setSaveSuccess(true);
-      // Здесь будет отправка на сервер
-      console.log('Расписание отправлено:', slotsByDate);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    }, 1000);
   };
 
   const handlePreviousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
-  // Открытие модального окна
-  const handleOpenAddTime = () => {
+  const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+  const days = getDaysInMonth(currentDate);
+
+  // Массовое создание слотов
+  const handleBulkCreate = async () => {
     if (!selectedDate) {
-      setError('Сначала выберите дату в календаре!');
+      toast.error('Выберите дату');
       return;
     }
-    setShowTimeModal(true);
-    setError('');
+
+    try {
+      const result = await timeSlotsService.bulkCreate({
+        date: selectedDate,
+        start_time: bulkForm.start_time,
+        end_time: bulkForm.end_time,
+        duration: bulkForm.duration,
+        break_duration: bulkForm.break_duration,
+      });
+
+      toast.success(result.message);
+      setShowBulkCreateModal(false);
+      loadData();
+    } catch (error: any) {
+      console.error('Error creating slots:', error);
+      toast.error(error.response?.data?.error || 'Ошибка создания слотов');
+    }
   };
 
-  // Фильтрация слотов по дате и userId (если нет прав на все)
-  const getFilteredSlots = (date: string) => {
-    const slots = slotsByDate[date] || [];
-    if (canViewAllSchedules) return slots;
-    return slots.filter(slot => !slot.clientName || slot.clientName === user!.name);
+  // Создание записи на прием
+  const handleCreateAppointment = async () => {
+    if (!selectedTimeSlot) return;
+
+    try {
+      await appointmentsService.create({
+        client_id: appointmentForm.client_id,
+        date: selectedTimeSlot.date,
+        time: selectedTimeSlot.time,
+        duration: selectedTimeSlot.duration,
+        service: appointmentForm.service,
+        notes: appointmentForm.notes,
+        time_slot_id: selectedTimeSlot.id,
+      });
+
+      toast.success('Запись создана');
+      setShowAppointmentModal(false);
+      setAppointmentForm({ client_id: 0, service: '', notes: '' });
+      loadData();
+    } catch (error: any) {
+      console.error('Error creating appointment:', error);
+      toast.error(error.response?.data?.errors?.join(', ') || 'Ошибка создания записи');
+    }
+  };
+
+  // Удаление слота
+  const handleDeleteSlot = async (slotId: number) => {
+    if (!confirm('Удалить этот слот?')) return;
+
+    try {
+      await timeSlotsService.delete(slotId);
+      toast.success('Слот удален');
+      loadData();
+    } catch (error) {
+      console.error('Error deleting slot:', error);
+      toast.error('Ошибка удаления слота');
+    }
+  };
+
+  // Открыть модалку для записи
+  const handleOpenAppointmentModal = (slot: TimeSlot) => {
+    if (slot.appointment) {
+      toast.error('Этот слот уже занят');
+      return;
+    }
+    setSelectedTimeSlot(slot);
+    setShowAppointmentModal(true);
   };
 
   return (
-    <div className="p-4 md:p-8">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-3">
-        <h1 className="text-3xl font-bold">Расписание</h1>
-        <div className="flex gap-2 items-center">
+    <div className="p-8">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-800">Расписание</h1>
+        {selectedDate && (
           <button
-            onClick={handleOpenAddTime}
-            className={`px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition ${selectedDate ? 'bg-primary text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
+            onClick={() => setShowBulkCreateModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            ➕ Добавить время
+            + Создать слоты
           </button>
-          <button
-            onClick={handleSaveSchedule}
-            disabled={isSaving}
-            className={`px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition ${isSaving ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-          >
-            {isSaving ? 'Сохраняю...' : 'Сохранить расписание'}
-          </button>
+        )}
+      </div>
+
+      {/* Календарь */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={handlePreviousMonth} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">←</button>
+          <h2 className="text-xl font-semibold">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
+          <button onClick={handleNextMonth} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">→</button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-2">
+          {['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'].map(day => (
+            <div key={day} className="text-center font-semibold text-gray-600 py-2">{day}</div>
+          ))}
+
+          {days.map((date, idx) => (
+            <div
+              key={idx}
+              onClick={() => date && handleDateClick(date)}
+              className={`
+                p-2 text-center rounded cursor-pointer transition-colors
+                ${!date ? 'invisible' : ''}
+                ${date && isToday(date) ? 'bg-blue-100 font-bold' : ''}
+                ${date && isSelected(date) ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}
+              `}
+            >
+              {date?.getDate()}
+            </div>
+          ))}
         </div>
       </div>
-      {error && (
-        <div className="mb-4 text-red-600 font-medium">{error}</div>
-      )}
-      {saveSuccess && (
-        <div className="mb-4 text-green-600 font-medium">Расписание успешно сохранено!</div>
-      )}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Календарь */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <button onClick={handlePreviousMonth} className="p-2 rounded-lg hover:bg-gray-100 transition">←</button>
-            <h2 className="text-xl font-semibold">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
-            <button onClick={handleNextMonth} className="p-2 rounded-lg hover:bg-gray-100 transition">→</button>
-          </div>
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
-              <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">{day}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {days.map((day, index) => (
-              <div key={index} className="min-h-[80px] p-1">
-                {day ? (
-                  <button
-                    onClick={() => handleDateClick(day)}
-                    className={`w-full h-full p-2 rounded-lg text-left transition ${
-                      isToday(day)
-                        ? 'bg-primary text-white'
-                        : isSelected(day)
-                        ? 'bg-blue-100 border-2 border-primary'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="text-sm font-medium">{day.getDate()}</div>
-                    <div className="text-xs opacity-70">{getDayName(day)}</div>
-                    {(slotsByDate[formatDate(day)] && slotsByDate[formatDate(day)].length > 0) && (
-                      <div className="mt-1"><div className="w-2 h-2 bg-green-500 rounded-full mx-auto"></div></div>
-                    )}
-                  </button>
-                ) : (<div className="w-full h-full"></div>)}
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Список слотов на выбранный день */}
-        <div className="bg-white rounded-xl shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">
-            {selectedDate ? formatDisplayDate(selectedDate) : 'Выберите дату'}
-          </h3>
-          {selectedDate ? (
-            <div className="space-y-2">
-              {(getFilteredSlots(selectedDate) && getFilteredSlots(selectedDate).length > 0) ? (
-                getFilteredSlots(selectedDate).map(slot => (
-                  <div key={slot.id} className={`w-full p-3 rounded-lg flex items-center justify-between border ${slot.clientName ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
-                    <div>
-                      <div className="font-medium text-gray-900 flex items-center gap-2">
-                        {slot.time}
-                        {slot.clientName && (
-                          <button
-                            className="ml-2 px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-semibold underline hover:bg-red-200"
-                            onClick={() => handleShowClientInfo(slot)}
-                          >
-                            Занято: {slot.clientName}
-                          </button>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-500">{slot.duration === '30' ? '30 минут' : slot.duration === '60' ? '1 час' : slot.duration === '90' ? '1.5 часа' : '2 часа'}</div>
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      {!slot.clientName && (
-                        <button onClick={() => handleOccupySlot(slot.id)} className="text-blue-500 hover:text-blue-700 text-sm border border-blue-200 rounded px-2 py-1" title="Занять слот">
-                          Занять
-                        </button>
-                      )}
-                      <button onClick={() => handleDeleteSlot(slot.id)} className="text-red-500 hover:text-red-700 text-xl" title="Удалить">
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-gray-500 py-8">Нет доступных окон. Нажмите "Добавить время".</div>
-              )}
-            </div>
+
+      {/* Слоты выбранной даты */}
+      {selectedDate && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Слоты на {selectedDate}</h2>
+
+          {loading ? (
+            <p className="text-gray-500">Загрузка...</p>
+          ) : timeSlots.length === 0 ? (
+            <p className="text-gray-500">Нет слотов. Создайте слоты для этой даты.</p>
           ) : (
-            <div className="text-center text-gray-500 py-8">Выберите дату в календаре, чтобы увидеть расписание</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {timeSlots.map(slot => {
+                const appointment = appointments.find(a => a.time_slot?.id === slot.id);
+                const isOccupied = !!slot.appointment || !!appointment;
+
+                return (
+                  <div
+                    key={slot.id}
+                    className={`
+                      p-4 rounded border-2 transition-colors
+                      ${isOccupied ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-white'}
+                    `}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-lg">{slot.time}</span>
+                      <span className="text-sm text-gray-600">{slot.duration} мин</span>
+                    </div>
+
+                    {isOccupied ? (
+                      <div className="text-sm">
+                        <p className="font-medium text-green-700">
+                          {slot.appointment?.client?.name || appointment?.client?.name}
+                        </p>
+                        <p className="text-gray-600">{slot.appointment?.service || appointment?.service}</p>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => handleOpenAppointmentModal(slot)}
+                          className="flex-1 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                        >
+                          Записать
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSlot(slot.id)}
+                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-      </div>
-      {/* Модальное окно для добавления времени */}
-      {showTimeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-semibold mb-4">Добавить временной слот</h3>
+      )}
+
+      {/* Модалка массового создания слотов */}
+      {showBulkCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Создать слоты на {selectedDate}</h2>
+
             <div className="space-y-4">
-              {selectedDate && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Дата</label>
-                  <div className="px-3 py-2 bg-gray-50 rounded-lg text-gray-900">{formatDisplayDate(selectedDate)}</div>
-                </div>
-              )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Время</label>
+                <label className="block text-sm font-medium mb-1">Начало</label>
                 <input
                   type="time"
-                  value={newTimeSlot.time}
-                  onChange={e => setNewTimeSlot(prev => ({ ...prev, time: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  value={bulkForm.start_time}
+                  onChange={(e) => setBulkForm({ ...bulkForm, start_time: e.target.value })}
+                  className="w-full px-3 py-2 border rounded"
                 />
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Длительность</label>
-                <select
-                  value={newTimeSlot.duration}
-                  onChange={e => setNewTimeSlot(prev => ({ ...prev, duration: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="30">30 минут</option>
-                  <option value="60">1 час</option>
-                  <option value="90">1.5 часа</option>
-                  <option value="120">2 часа</option>
-                </select>
+                <label className="block text-sm font-medium mb-1">Конец</label>
+                <input
+                  type="time"
+                  value={bulkForm.end_time}
+                  onChange={(e) => setBulkForm({ ...bulkForm, end_time: e.target.value })}
+                  className="w-full px-3 py-2 border rounded"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Длительность (минут)</label>
+                <input
+                  type="number"
+                  value={bulkForm.duration}
+                  onChange={(e) => setBulkForm({ ...bulkForm, duration: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border rounded"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Перерыв между слотами (минут)</label>
+                <input
+                  type="number"
+                  value={bulkForm.break_duration}
+                  onChange={(e) => setBulkForm({ ...bulkForm, break_duration: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border rounded"
+                />
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
+
+            <div className="flex gap-3 mt-6">
               <button
-                onClick={() => { setShowTimeModal(false); setNewTimeSlot({ time: '', duration: '60' }); }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                onClick={handleBulkCreate}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Создать
+              </button>
+              <button
+                onClick={() => setShowBulkCreateModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
               >
                 Отмена
               </button>
-              <button
-                onClick={handleAddTimeSlot}
-                className={`px-4 py-2 rounded-lg ${newTimeSlot.time ? 'bg-primary text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
-                disabled={!newTimeSlot.time}
-              >
-                Добавить
-              </button>
             </div>
           </div>
         </div>
       )}
-      {/* Модальное окно информации о клиенте */}
-      {clientInfo && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-semibold mb-4">Информация о клиенте</h3>
-            <div className="space-y-3">
+
+      {/* Модалка создания записи */}
+      {showAppointmentModal && selectedTimeSlot && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">
+              Запись на {selectedTimeSlot.date} в {selectedTimeSlot.time}
+            </h2>
+
+            <div className="space-y-4">
               <div>
-                <span className="font-medium">Имя:</span> {clientInfo.firstName} {clientInfo.lastName}
+                <label className="block text-sm font-medium mb-1">Клиент</label>
+                <select
+                  value={appointmentForm.client_id}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, client_id: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border rounded"
+                >
+                  <option value={0}>Выберите клиента</option>
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>{client.name}</option>
+                  ))}
+                </select>
               </div>
+
               <div>
-                <span className="font-medium">Телефон:</span> {clientInfo.phone}
+                <label className="block text-sm font-medium mb-1">Услуга</label>
+                <input
+                  type="text"
+                  value={appointmentForm.service}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, service: e.target.value })}
+                  placeholder="Консультация"
+                  className="w-full px-3 py-2 border rounded"
+                />
               </div>
+
               <div>
-                <span className="font-medium">Email:</span> {clientInfo.email}
-              </div>
-              <div>
-                <span className="font-medium">Telegram:</span> {clientInfo.telegram ? (
-                  <a href={clientInfo.telegram} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{clientInfo.telegram}</a>
-                ) : (
-                  <span className="text-gray-400">—</span>
-                )}
+                <label className="block text-sm font-medium mb-1">Заметки</label>
+                <textarea
+                  value={appointmentForm.notes}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded"
+                  placeholder="Дополнительная информация"
+                />
               </div>
             </div>
-            <div className="flex justify-end gap-3 mt-6">
+
+            <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setClientInfo(null)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                onClick={handleCreateAppointment}
+                disabled={!appointmentForm.client_id}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                Закрыть
+                Создать запись
               </button>
               <button
                 onClick={() => {
-                  // Пример поиска id клиента по имени и фамилии (в реальном проекте нужен id)
-                  let clientId = '';
-                  if (clientInfo.firstName === 'Анна' && clientInfo.lastName === 'Петрова') clientId = '1';
-                  if (clientInfo.firstName === 'Михаил' && clientInfo.lastName === 'Сидоров') clientId = '2';
-                  if (clientId) navigate(`/clients/${clientId}`);
+                  setShowAppointmentModal(false);
+                  setAppointmentForm({ client_id: 0, service: '', notes: '' });
                 }}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition"
+                className="flex-1 px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
               >
-                Профиль
+                Отмена
               </button>
             </div>
           </div>
@@ -424,4 +436,4 @@ const Schedule: React.FC = () => {
   );
 };
 
-export default Schedule; 
+export default Schedule;
