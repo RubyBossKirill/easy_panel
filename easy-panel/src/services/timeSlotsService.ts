@@ -17,27 +17,27 @@ export const timeSlotsService = {
 
     const query = params.toString();
     const response = await api.get(`/time_slots${query ? `?${query}` : ''}`);
-    return response.data;
+    return Array.isArray(response) ? response : response.data;
   },
 
   getById: async (id: number): Promise<TimeSlot> => {
     const response = await api.get(`/time_slots/${id}`);
-    return response.data;
+    return (response as any).id ? response : response.data;
   },
 
   create: async (data: CreateTimeSlotData): Promise<TimeSlot> => {
     const response = await api.post('/time_slots', { time_slot: data });
-    return response.data;
+    return (response as any).id ? response : response.data;
   },
 
   bulkCreate: async (data: BulkCreateTimeSlotsData): Promise<{ message: string; time_slots: TimeSlot[] }> => {
     const response = await api.post('/time_slots/bulk_create', data);
-    return response.data;
+    return (response as any).message ? response : response.data;
   },
 
   update: async (id: number, data: Partial<CreateTimeSlotData>): Promise<TimeSlot> => {
     const response = await api.patch(`/time_slots/${id}`, { time_slot: data });
-    return response.data;
+    return (response as any).id ? response : response.data;
   },
 
   delete: async (id: number): Promise<void> => {

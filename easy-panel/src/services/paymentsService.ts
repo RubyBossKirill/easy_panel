@@ -12,16 +12,16 @@ export const paymentsService = {
 
     const query = params.toString();
     const response = await api.get(`/payments${query ? `?${query}` : ''}`);
-    return response.data;
+    return Array.isArray(response) ? response : response.data;
   },
 
   getById: async (id: number): Promise<Payment> => {
     const response = await api.get(`/payments/${id}`);
-    return response.data;
+    return (response as any).id ? response : response.data;
   },
 
   create: async (data: CreatePaymentData): Promise<Payment> => {
     const response = await api.post('/payments', { payment: data });
-    return response.data;
+    return (response as any).id ? response : response.data;
   },
 };

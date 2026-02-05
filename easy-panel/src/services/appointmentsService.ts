@@ -17,6 +17,12 @@ export const appointmentsService = {
 
     const query = params.toString();
     const response = await api.get(`/appointments${query ? `?${query}` : ''}`);
+
+    // Backend returns array directly, not wrapped in {status, data}
+    if (Array.isArray(response)) {
+      return response;
+    }
+
     if (!response.status || !response.data) {
       throw new Error(response.message || 'Failed to fetch appointments');
     }
@@ -25,17 +31,17 @@ export const appointmentsService = {
 
   getById: async (id: number): Promise<Appointment> => {
     const response = await api.get(`/appointments/${id}`);
-    return response.data;
+    return (response as any).id ? response : response.data;
   },
 
   create: async (data: CreateAppointmentData): Promise<Appointment> => {
     const response = await api.post('/appointments', { appointment: data });
-    return response.data;
+    return (response as any).id ? response : response.data;
   },
 
   update: async (id: number, data: UpdateAppointmentData): Promise<Appointment> => {
     const response = await api.patch(`/appointments/${id}`, { appointment: data });
-    return response.data;
+    return (response as any).id ? response : response.data;
   },
 
   delete: async (id: number): Promise<void> => {
@@ -44,6 +50,6 @@ export const appointmentsService = {
 
   updateStatus: async (id: number, status: string): Promise<Appointment> => {
     const response = await api.patch(`/appointments/${id}/update_status`, { status });
-    return response.data;
+    return (response as any).id ? response : response.data;
   },
 };
