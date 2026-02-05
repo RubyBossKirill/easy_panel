@@ -193,16 +193,26 @@ const Profile: React.FC = () => {
         <div>
           <h3 className="text-lg font-semibold mb-4">Роль и права доступа</h3>
           <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-3">
               <span className="px-3 py-1 bg-primary text-white rounded-full text-sm font-medium">
                 {user.role?.name || 'Нет роли'}
               </span>
             </div>
-            <p className="text-sm text-gray-600">
-              {user.role?.permissions && user.role.permissions.length > 0
-                ? `Права: ${user.role.permissions.join(', ')}`
-                : 'Нет прав доступа'}
-            </p>
+            {user.role?.translated_permissions && user.role.translated_permissions.length > 0 ? (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Права доступа:</p>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  {user.role.translated_permissions.map((perm, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-primary mr-2">•</span>
+                      <span>{perm}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">Нет прав доступа</p>
+            )}
           </div>
         </div>
         </div>

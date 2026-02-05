@@ -1,0 +1,35 @@
+ru:
+  permissions:
+    # Просмотр
+    view_dashboard: "Просмотр дашборда"
+    view_analytics: "Просмотр аналитики"
+    view_clients: "Просмотр своих клиентов"
+    view_all_clients: "Просмотр всех клиентов"
+    view_payments: "Просмотр своих платежей"
+    view_all_payments: "Просмотр всех платежей"
+
+    # Управление расписанием
+    manage_schedule: "Управление расписанием"
+
+    # Управление клиентами
+    manage_clients: "Управление своими клиентами"
+    manage_all_clients: "Управление всеми клиентами"
+    delete_clients: "Удаление клиентов"
+
+    # Управление платежами
+    manage_payments: "Управление своими платежами"
+    manage_all_payments: "Управление всеми платежами"
+
+    # Управление пользователями
+    manage_users: "Управление пользователями"
+    delete_users: "Удаление пользователей"
+
+    # Управление ролями
+    manage_roles: "Управление ролями"
+
+    # Настройки
+    manage_account_settings: "Управление настройками аккаунта"
+    manage_payment_settings: "Управление настройками платежей"
+    manage_certificates: "Управление сертификатами"
+    manage_subscriptions: "Управление подписками"
+    manage_discounts: "Управление скидками"

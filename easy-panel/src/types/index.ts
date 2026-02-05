@@ -142,6 +142,7 @@ export type Role = {
   id: number | string;
   name: string;
   permissions: Permission[];
+  translated_permissions?: string[]; // Переведённые названия прав на русском
   isOwner?: boolean; // true только для владельца (frontend)
   is_owner?: boolean; // true только для владельца (from API)
 };

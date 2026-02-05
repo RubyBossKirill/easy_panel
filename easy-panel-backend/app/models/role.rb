@@ -27,4 +27,16 @@ class Role < ApplicationRecord
     manage_subscriptions
     manage_discounts
   ].freeze
+
+  # Возвращает массив переведённых прав доступа
+  def translated_permissions
+    permissions.map { |perm| I18n.t("permissions.#{perm}", default: perm) }
+  end
+
+  # Метод для JSON сериализации
+  def as_json(options = {})
+    super(options).tap do |json|
+      json['translated_permissions'] = translated_permissions
+    end
+  end
 end
