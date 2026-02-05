@@ -40,6 +40,9 @@ module EasyPanelBackend
     config.i18n.default_locale = :ru
     config.i18n.available_locales = [:ru, :en]
 
+    # Configure Active Job to use Sidekiq
+    config.active_job.queue_adapter = :sidekiq
+
     # Only loads a smaller set of middleware suitable for API only apps.
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.

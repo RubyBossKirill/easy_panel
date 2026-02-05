@@ -1,0 +1,10 @@
+# Scheduled jobs for sidekiq-cron
+# Format: job_name: { cron: 'cron expression', class: 'JobClass', queue: 'queue_name' }
+#
+# Example:
+# send_appointment_reminders:
+#   cron: '*/15 * * * *'  # Every 15 minutes
+#   class: 'SendAppointmentRemindersJob'
+#   queue: 'notifications'
+
+{}

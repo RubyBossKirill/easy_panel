@@ -34,6 +34,7 @@ services:
       DATABASE_PASSWORD: postgres
       DATABASE_NAME: easy_panel_development
       RAILS_ENV: development
+      REDIS_URL: redis://redis:6379/0
     volumes:
       - ./easy-panel-backend:/app
       - backend_bundle:/usr/local/bundle
@@ -42,6 +43,20 @@ services:
         condition: service_healthy
     stdin_open: true
     tty: true
+
+  # Redis for Sidekiq
+  redis:
+    image: redis:7-alpine
+    container_name: easy_panel_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   # React Frontend
   frontend:
@@ -63,6 +78,30 @@ services:
     stdin_open: true
     tty: true
 
+  # Sidekiq for background jobs
+  sidekiq:
+    build:
+      context: ./easy-panel-backend
+      dockerfile: Dockerfile.dev
+    container_name: easy_panel_sidekiq
+    command: bash -c "bundle install && bundle exec sidekiq -C config/sidekiq.yml"
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: easy_panel_development
+      RAILS_ENV: development
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./easy-panel-backend:/app
+      - backend_bundle:/usr/local/bundle
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   backend_bundle:
+  redis_data:
