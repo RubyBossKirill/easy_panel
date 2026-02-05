@@ -20,9 +20,11 @@ end
 admin_role = Role.find_or_create_by!(name: 'Администратор') do |role|
   role.permissions = %w[
     view_dashboard
+    view_analytics
     manage_schedule
     view_clients
     manage_clients
+    delete_clients
     view_payments
     manage_payments
     view_all_clients
@@ -30,7 +32,10 @@ admin_role = Role.find_or_create_by!(name: 'Администратор') do |rol
     view_all_payments
     manage_all_payments
     manage_users
-    manage_roles
+    delete_users
+    manage_certificates
+    manage_subscriptions
+    manage_discounts
   ]
   role.is_owner = false
 end

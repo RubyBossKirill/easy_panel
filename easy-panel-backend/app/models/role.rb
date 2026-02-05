@@ -7,9 +7,11 @@ class Role < ApplicationRecord
   # Default permissions
   PERMISSIONS = %w[
     view_dashboard
+    view_analytics
     manage_schedule
     view_clients
     manage_clients
+    delete_clients
     view_payments
     manage_payments
     view_all_clients
@@ -17,8 +19,12 @@ class Role < ApplicationRecord
     view_all_payments
     manage_all_payments
     manage_users
+    delete_users
     manage_roles
     manage_account_settings
     manage_payment_settings
+    manage_certificates
+    manage_subscriptions
+    manage_discounts
   ].freeze
 end
