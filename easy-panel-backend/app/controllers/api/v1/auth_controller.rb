@@ -158,7 +158,8 @@ class Api::V1::AuthController < ApplicationController
       role: {
         id: user.role.id,
         name: user.role.name,
-        permissions: user.role.permissions
+        permissions: user.role.permissions,
+        translated_permissions: user.role.translated_permissions
       }
     }
   end
