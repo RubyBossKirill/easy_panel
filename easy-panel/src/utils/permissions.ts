@@ -2,9 +2,11 @@ import { Permission, Role, User } from '../types';
 
 export const ALL_PERMISSIONS: Permission[] = [
   'view_dashboard',
+  'view_analytics',
   'manage_schedule',
   'view_clients',
   'manage_clients',
+  'delete_clients',
   'view_payments',
   'manage_payments',
   'view_all_clients',
@@ -12,9 +14,13 @@ export const ALL_PERMISSIONS: Permission[] = [
   'view_all_payments',
   'manage_all_payments',
   'manage_users',
+  'delete_users',
   'manage_roles',
   'manage_account_settings',
   'manage_payment_settings',
+  'manage_certificates',
+  'manage_subscriptions',
+  'manage_discounts',
 ];
 
 export const DEFAULT_ROLES: Role[] = [
@@ -59,9 +65,11 @@ export const DEFAULT_ROLES: Role[] = [
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
   view_dashboard: 'Просмотр панели управления',
+  view_analytics: 'Просмотр аналитики',
   manage_schedule: 'Управление расписанием',
   view_clients: 'Просмотр клиентов',
   manage_clients: 'Управление клиентами',
+  delete_clients: 'Удаление клиентов',
   view_payments: 'Просмотр оплат',
   manage_payments: 'Управление оплатами',
   view_all_clients: 'Просмотр всех клиентов',
@@ -69,9 +77,13 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   view_all_payments: 'Просмотр всех оплат',
   manage_all_payments: 'Управление всеми оплатами',
   manage_users: 'Управление пользователями',
+  delete_users: 'Удаление пользователей',
   manage_roles: 'Управление ролями',
   manage_account_settings: 'Настройки аккаунта',
   manage_payment_settings: 'Настройки оплаты',
+  manage_certificates: 'Управление сертификатами',
+  manage_subscriptions: 'Управление абонементами',
+  manage_discounts: 'Управление скидками',
 };
 
 export function getPermissionLabel(permission: Permission): string {

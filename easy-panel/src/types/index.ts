@@ -118,9 +118,11 @@ export interface PaginatedResponse<T> {
 // --- Permissions & Roles ---
 export type Permission =
   | 'view_dashboard'
+  | 'view_analytics'
   | 'manage_schedule'
   | 'view_clients'
   | 'manage_clients'
+  | 'delete_clients'
   | 'view_payments'
   | 'manage_payments'
   | 'view_all_clients'
@@ -128,21 +130,28 @@ export type Permission =
   | 'view_all_payments'
   | 'manage_all_payments'
   | 'manage_users'
+  | 'delete_users'
   | 'manage_roles'
   | 'manage_account_settings'
-  | 'manage_payment_settings';
+  | 'manage_payment_settings'
+  | 'manage_certificates'
+  | 'manage_subscriptions'
+  | 'manage_discounts';
 
 export type Role = {
   id: number | string;
   name: string;
   permissions: Permission[];
-  isOwner?: boolean; // true только для владельца
+  isOwner?: boolean; // true только для владельца (frontend)
+  is_owner?: boolean; // true только для владельца (from API)
 };
 
 export type User = {
   id: number;
   name: string;
   email: string;
+  phone?: string | null;
+  telegram?: string | null;
   role_id: number; // ID роли из базы данных
   roleId?: string; // для обратной совместимости со старым кодом
   role?: Role; // Объект роли с правами (приходит из API)
