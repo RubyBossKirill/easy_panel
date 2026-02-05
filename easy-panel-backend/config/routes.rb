@@ -22,7 +22,11 @@ Rails.application.routes.draw do
           patch :update_status
         end
       end
-      resources :time_slots, only: %i[index show create update destroy]
+      resources :time_slots, only: %i[index show create update destroy] do
+        collection do
+          post :bulk_create
+        end
+      end
       resources :payments, only: %i[index show create]
     end
   end
