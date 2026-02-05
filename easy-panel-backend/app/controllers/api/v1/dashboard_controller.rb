@@ -4,7 +4,7 @@ module Api
       before_action :authenticate_user!
 
       def stats
-        unless has_permission?('view_dashboard')
+        unless current_user.has_permission?('view_dashboard')
           render json: { error: 'Forbidden' }, status: :forbidden
           return
         end

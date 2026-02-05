@@ -17,6 +17,9 @@ export const appointmentsService = {
 
     const query = params.toString();
     const response = await api.get(`/appointments${query ? `?${query}` : ''}`);
+    if (!response.status || !response.data) {
+      throw new Error(response.message || 'Failed to fetch appointments');
+    }
     return response.data;
   },
 

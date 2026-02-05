@@ -10,7 +10,7 @@ module Api
         @appointments = Appointment.includes(:client, :employee)
 
         # Фильтрация по сотруднику (если не Owner/Admin - видит только свои)
-        unless current_user.has_role?(:owner) || current_user.has_role?(:admin)
+        unless current_user.role.name == 'Owner' || current_user.role.name == 'Admin'
           @appointments = @appointments.for_employee(current_user.id)
         end
 
