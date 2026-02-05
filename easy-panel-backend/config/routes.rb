@@ -17,7 +17,11 @@ Rails.application.routes.draw do
       resources :users, only: %i[index show create update destroy]
       resources :roles, only: %i[index show create update destroy]
       resources :clients, only: %i[index show create update destroy]
-      resources :appointments, only: %i[index show create update destroy]
+      resources :appointments, only: %i[index show create update destroy] do
+        member do
+          patch :update_status
+        end
+      end
       resources :time_slots, only: %i[index show create update destroy]
       resources :payments, only: %i[index show create]
     end
