@@ -4,6 +4,7 @@ import { hasPermission, ALL_PERMISSIONS, DEFAULT_ROLES, getPermissionLabel } fro
 import { Role, Permission, User } from '../types';
 import { Dialog, Transition } from '@headlessui/react';
 import { usersService } from '../services/usersService';
+import { rolesService } from '../services/rolesService';
 
 const TABS = [
   { id: 'project', label: 'Название проекта' },
@@ -28,6 +29,23 @@ const AccountSettings: React.FC = () => {
   const [editRoleModal, setEditRoleModal] = useState<{ open: boolean; role: Role | null }>({ open: false, role: null });
   const [newRoleModal, setNewRoleModal] = useState(false);
 
+  // Загрузка ролей из API
+  const loadRoles = async () => {
+    try {
+      const response = await rolesService.getRoles();
+      setRoles(response.data.roles);
+
+      // Установить дефолтную роль для нового пользователя (первая не-owner роль)
+      const defaultRole = response.data.roles.find(r => !r.is_owner);
+      if (defaultRole) {
+        setNewUser(prev => ({ ...prev, role_id: Number(defaultRole.id) }));
+      }
+    } catch (err: any) {
+      console.error('Failed to load roles:', err);
+      // Если роли не загрузились, используем DEFAULT_ROLES
+    }
+  };
+
   // Загрузка пользователей
   const loadUsers = async () => {
     try {
@@ -35,23 +53,6 @@ const AccountSettings: React.FC = () => {
       setError(null);
       const response = await usersService.getUsers();
       setUsers(response.data.users);
-
-      // Собрать уникальные роли из загруженных пользователей
-      const uniqueRoles = response.data.users
-        .map(u => u.role)
-        .filter((role, index, self) =>
-          role && self.findIndex(r => r?.id === role.id) === index
-        ) as Role[];
-
-      if (uniqueRoles.length > 0) {
-        setRoles(uniqueRoles);
-
-        // Установить дефолтную роль для нового пользователя (первая не-owner роль)
-        const defaultRole = uniqueRoles.find(r => !r.isOwner && !r.is_owner);
-        if (defaultRole) {
-          setNewUser(prev => ({ ...prev, role_id: Number(defaultRole.id) }));
-        }
-      }
     } catch (err: any) {
       console.error('Failed to load users:', err);
       setError(err.response?.data?.error || 'Не удалось загрузить пользователей');
@@ -61,6 +62,7 @@ const AccountSettings: React.FC = () => {
   };
 
   useEffect(() => {
+    loadRoles();
     loadUsers();
   }, []);
 
@@ -296,8 +298,8 @@ const AccountSettings: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-6">
             {roles.map(role => (
               <div key={role.id} className={`rounded-xl p-5 shadow border-2 flex flex-col gap-2 transition-all ${role.isOwner ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:border-primary'}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`font-bold text-lg ${role.isOwner ? 'text-blue-700' : ''}`}>{ROLE_LABELS[role.id] || role.name}</span>
+<div className="flex items-center gap-2 mb-2">
+                  <span className={`font-bold text-lg ${role.isOwner ? 'text-blue-700' : ''}`}>{role.name}</span>
                   {role.isOwner && <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Владелец</span>}
                 </div>
                 <div className="text-gray-700 text-sm mb-2">
