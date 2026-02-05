@@ -38,13 +38,7 @@ const Schedule: React.FC = () => {
   });
 
   const user = getCurrentUser();
-  if (!user) return null;
-
-  const canManageSchedule = hasPermission(user, DEFAULT_ROLES, 'manage_schedule');
-
-  if (!canManageSchedule) {
-    return <div className="p-8 text-red-600 font-bold text-center text-xl">Нет доступа к расписанию</div>;
-  }
+  const canManageSchedule = user ? hasPermission(user, DEFAULT_ROLES, 'manage_schedule') : false;
 
   useEffect(() => {
     if (selectedDate) {
@@ -55,6 +49,12 @@ const Schedule: React.FC = () => {
   useEffect(() => {
     loadClients();
   }, []);
+
+  if (!user) return null;
+
+  if (!canManageSchedule) {
+    return <div className="p-8 text-red-600 font-bold text-center text-xl">Нет доступа к расписанию</div>;
+  }
 
   const loadData = async () => {
     setLoading(true);
@@ -174,7 +174,7 @@ const Schedule: React.FC = () => {
 
   // Удаление слота
   const handleDeleteSlot = async (slotId: number) => {
-    if (!confirm('Удалить этот слот?')) return;
+    if (!window.confirm('Удалить этот слот?')) return;
 
     try {
       await timeSlotsService.delete(slotId);

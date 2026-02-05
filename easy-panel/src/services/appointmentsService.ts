@@ -1,4 +1,4 @@
-import api from '../api/client';
+import api from '../utils/apiClient';
 import {
   Appointment,
   CreateAppointmentData,
