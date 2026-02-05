@@ -1,19 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { getCurrentUser } from '../utils/auth';
-import { hasPermission } from '../utils/permissions';
-import { ALL_PERMISSIONS, DEFAULT_ROLES } from '../utils/permissions';
-import { Role, Permission } from '../types';
-import { getPermissionLabel } from '../utils/permissions';
-import { Fragment } from 'react';
+import { hasPermission, ALL_PERMISSIONS, DEFAULT_ROLES, getPermissionLabel } from '../utils/permissions';
+import { Role, Permission, User } from '../types';
 import { Dialog, Transition } from '@headlessui/react';
 import { usersService } from '../services/usersService';
-import { User } from '../types';
-
-const ROLE_LABELS: Record<string, string> = {
-  owner: 'Владелец',
-  admin: 'Администратор',
-  employee: 'Сотрудник',
-};
 
 const TABS = [
   { id: 'project', label: 'Название проекта' },
