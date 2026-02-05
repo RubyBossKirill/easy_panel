@@ -5,6 +5,8 @@ import { Role, Permission, User } from '../types';
 import { Dialog, Transition } from '@headlessui/react';
 import { usersService } from '../services/usersService';
 import { rolesService } from '../services/rolesService';
+import { useToast } from '../hooks/useToast';
+import ToastContainer from '../components/ToastContainer';
 
 const TABS = [
   { id: 'project', label: 'Название проекта' },
@@ -14,6 +16,7 @@ const TABS = [
 
 const AccountSettings: React.FC = () => {
   const user = getCurrentUser();
+  const toast = useToast();
   const [projectName, setProjectName] = useState('Easy Panel');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,23 +78,24 @@ const AccountSettings: React.FC = () => {
     try {
       await usersService.updateUser(id, { role_id: newRoleId });
       loadUsers(); // Перезагрузить список
+      toast.success('Роль успешно изменена');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Не удалось изменить роль');
+      toast.error(err.response?.data?.error || 'Не удалось изменить роль');
     }
   };
 
   const handleAddUser = async () => {
     if (!newUser.name || !newUser.email) {
-      alert('Заполните имя и email');
+      toast.warning('Заполните имя и email');
       return;
     }
     try {
       await usersService.createUser(newUser);
-      alert('Пользователь успешно создан');
+      toast.success('Пользователь успешно создан');
       setNewUser({ name: '', email: '', password: '12345678', password_confirmation: '12345678', role_id: 3, phone: '', telegram: '' });
       loadUsers(); // Перезагрузить список
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Не удалось создать пользователя');
+      toast.error(err.response?.data?.error || 'Не удалось создать пользователя');
     }
   };
 
@@ -99,29 +103,33 @@ const AccountSettings: React.FC = () => {
     if (!window.confirm('Вы уверены, что хотите удалить этого пользователя?')) return;
     try {
       await usersService.deleteUser(id);
-      alert('Пользователь успешно удалён');
+      toast.success('Пользователь успешно удалён');
       loadUsers();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Не удалось удалить пользователя');
+      toast.error(err.response?.data?.error || 'Не удалось удалить пользователя');
     }
   };
 
   const handleAddRole = async () => {
     if (!newRole.name.trim()) {
-      alert('Введите название роли');
+      toast.warning('Введите название роли');
       return;
     }
     try {
-      await rolesService.createRole({
+      const response = await rolesService.createRole({
         name: newRole.name,
         permissions: newRole.permissions,
       });
-      alert('Роль успешно создана');
-      setNewRole({ name: '', permissions: [] });
-      setNewRoleModal(false);
-      loadRoles(); // Перезагрузить роли
+      if (response.status) {
+        toast.success('Роль успешно создана');
+        setNewRole({ name: '', permissions: [] });
+        setNewRoleModal(false);
+        loadRoles(); // Перезагрузить роли
+      } else {
+        toast.error(response.error || 'Не удалось создать роль');
+      }
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Не удалось создать роль');
+      toast.error(err.message || 'Не удалось создать роль');
     }
   };
 
@@ -134,41 +142,53 @@ const AccountSettings: React.FC = () => {
       : [...role.permissions, perm];
 
     try {
-      await rolesService.updateRole(Number(roleId), { permissions: updatedPermissions });
-      loadRoles(); // Перезагрузить роли
+      const response = await rolesService.updateRole(Number(roleId), { permissions: updatedPermissions });
+      if (response.status) {
+        loadRoles(); // Перезагрузить роли
+      } else {
+        toast.error(response.error || 'Не удалось изменить права');
+      }
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Не удалось изменить права');
+      toast.error(err.message || 'Не удалось изменить права');
     }
   };
 
   const handleDeleteRole = async (roleId: number | string) => {
     if (!window.confirm('Вы уверены, что хотите удалить эту роль?')) return;
     try {
-      await rolesService.deleteRole(Number(roleId));
-      alert('Роль успешно удалена');
-      loadRoles(); // Перезагрузить роли
+      const response = await rolesService.deleteRole(Number(roleId));
+      if (response.status) {
+        toast.success('Роль успешно удалена');
+        loadRoles(); // Перезагрузить роли
+      } else {
+        toast.error(response.message || 'Не удалось удалить роль');
+      }
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Не удалось удалить роль');
+      toast.error(err.response?.data?.error || err.message || 'Не удалось удалить роль');
     }
   };
 
   const handleEditRoleName = async (roleId: number | string, name: string) => {
     if (!name.trim()) {
-      alert('Введите название роли');
+      toast.warning('Введите название роли');
       return;
     }
     try {
-      await rolesService.updateRole(Number(roleId), { name });
-      setEditingRoleId(null);
-      setEditingRoleName('');
-      loadRoles(); // Перезагрузить роли
+      const response = await rolesService.updateRole(Number(roleId), { name });
+      if (response.status) {
+        setEditingRoleId(null);
+        setEditingRoleName('');
+        loadRoles(); // Перезагрузить роли
+      } else {
+        toast.error(response.error || 'Не удалось изменить название роли');
+      }
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Не удалось изменить название роли');
+      toast.error(err.message || 'Не удалось изменить название роли');
     }
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto">
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Настройки аккаунта</h1>
       {/* Tabs */}
       <div className="flex border-b mb-8">
@@ -214,16 +234,17 @@ const AccountSettings: React.FC = () => {
             </div>
           ) : (
             <>
-              <table className="w-full mb-4 rounded-xl overflow-hidden">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-left text-xs text-gray-500 uppercase px-4 py-2">Имя</th>
-                    <th className="text-left text-xs text-gray-500 uppercase px-4 py-2">Email</th>
-                    <th className="text-left text-xs text-gray-500 uppercase px-4 py-2">Телефон</th>
-                    <th className="text-left text-xs text-gray-500 uppercase px-4 py-2">Роль</th>
-                    <th className="text-left text-xs text-gray-500 uppercase px-4 py-2">Действия</th>
-                  </tr>
-                </thead>
+              <div className="overflow-x-auto">
+                <table className="w-full mb-4 min-w-[640px]">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left text-xs text-gray-500 uppercase px-3 py-2 whitespace-nowrap">Имя</th>
+                      <th className="text-left text-xs text-gray-500 uppercase px-3 py-2 whitespace-nowrap">Email</th>
+                      <th className="text-left text-xs text-gray-500 uppercase px-3 py-2 whitespace-nowrap hidden sm:table-cell">Телефон</th>
+                      <th className="text-left text-xs text-gray-500 uppercase px-3 py-2 whitespace-nowrap">Роль</th>
+                      <th className="text-left text-xs text-gray-500 uppercase px-3 py-2 whitespace-nowrap w-20"></th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {users.map((u, idx) => {
                     if (!u.role) return null; // Skip if role is undefined
@@ -233,33 +254,31 @@ const AccountSettings: React.FC = () => {
                       <tr key={u.id} className={
                         `${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} ${isOwner ? 'bg-blue-50' : ''}`
                       }>
-                        <td className="px-4 py-3 align-middle text-base">{u.name}</td>
-                        <td className="px-4 py-3 align-middle text-base">{u.email}</td>
-                        <td className="px-4 py-3 align-middle text-base">{u.phone || '—'}</td>
-                        <td className="px-4 py-3 align-middle">
-                          <div className="relative">
-                            <select
-                              value={u.role!.id}
-                              onChange={e => handleRoleChange(u.id, Number(e.target.value))}
-                              className={`appearance-none w-full px-4 py-2 pr-8 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all min-w-[140px] bg-white text-base ${isOwner ? 'bg-blue-100 text-blue-700 cursor-not-allowed' : 'hover:border-blue-400'}`}
-                              disabled={isOwner}
-                              style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'16\' height=\'16\' fill=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M4 6l4 4 4-4\' stroke=\'%236B7280\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25em 1.25em' }}
-                            >
-                              {isOwner ? (
-                                <option key={u.role!.id} value={u.role!.id}>{u.role!.name}</option>
-                              ) : (
-                                roles.filter(r => !r.isOwner && !r.is_owner).map(role => (
-                                  <option key={role.id} value={role.id}>{role.name}</option>
-                                ))
-                              )}
-                            </select>
-                          </div>
+                        <td className="px-3 py-2 align-middle text-sm whitespace-nowrap">{u.name}</td>
+                        <td className="px-3 py-2 align-middle text-sm whitespace-nowrap">{u.email}</td>
+                        <td className="px-3 py-2 align-middle text-sm whitespace-nowrap hidden sm:table-cell">{u.phone || '—'}</td>
+                        <td className="px-3 py-2 align-middle">
+                          <select
+                            value={u.role!.id}
+                            onChange={e => handleRoleChange(u.id, Number(e.target.value))}
+                            className={`appearance-none w-full px-2 py-1.5 pr-6 border rounded text-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all min-w-[120px] ${isOwner ? 'bg-blue-100 text-blue-700 cursor-not-allowed' : 'bg-white hover:border-blue-400'}`}
+                            disabled={isOwner}
+                            style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'12\' height=\'12\' fill=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M3 4.5l3 3 3-3\' stroke=\'%236B7280\' stroke-width=\'1.5\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.75rem' }}
+                          >
+                            {isOwner ? (
+                              <option key={u.role!.id} value={u.role!.id}>{u.role!.name}</option>
+                            ) : (
+                              roles.filter(r => !r.isOwner && !r.is_owner).map(role => (
+                                <option key={role.id} value={role.id}>{role.name}</option>
+                              ))
+                            )}
+                          </select>
                         </td>
-                        <td className="px-4 py-3 align-middle">
+                        <td className="px-3 py-2 align-middle text-center">
                           {!isOwner && (
                             <button
                               onClick={() => handleDeleteUser(u.id)}
-                              className="text-red-600 hover:text-red-900"
+                              className="text-red-600 hover:text-red-900 text-lg"
                               title="Удалить пользователя"
                             >
                               🗑️
@@ -271,45 +290,64 @@ const AccountSettings: React.FC = () => {
                   })}
                 </tbody>
               </table>
-              <form className="flex flex-wrap gap-2 items-center mt-4" onSubmit={e => { e.preventDefault(); handleAddUser(); }}>
-                <input
-                  type="text"
-                  placeholder="Имя"
-                  value={newUser.name}
-                  onChange={e => setNewUser({ ...newUser, name: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-base flex-1 min-w-[120px]"
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={newUser.email}
-                  onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-base flex-1 min-w-[160px]"
-                />
-                <input
-                  type="tel"
-                  placeholder="Телефон"
-                  value={newUser.phone}
-                  onChange={e => setNewUser({ ...newUser, phone: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-base flex-1 min-w-[120px]"
-                />
-                <select
-                  value={newUser.role_id}
-                  onChange={e => setNewUser({ ...newUser, role_id: Number(e.target.value) })}
-                  className="appearance-none px-4 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-base min-w-[140px] bg-white hover:border-blue-400"
-                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'16\' height=\'16\' fill=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M4 6l4 4 4-4\' stroke=\'%236B7280\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25em 1.25em' }}
-                >
-                  {roles.filter(r => !r.isOwner && !r.is_owner).map(role => (
-                    <option key={role.id} value={role.id}>{role.name}</option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition min-w-[120px] text-base shadow-sm"
-                >
-                  Добавить
-                </button>
-              </form>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="text-base font-semibold mb-3">Добавить пользователя</h3>
+                <form className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" onSubmit={e => { e.preventDefault(); handleAddUser(); }}>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Имя</label>
+                    <input
+                      type="text"
+                      placeholder="Введите имя"
+                      value={newUser.name}
+                      onChange={e => setNewUser({ ...newUser, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      placeholder="user@example.com"
+                      value={newUser.email}
+                      onChange={e => setNewUser({ ...newUser, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Телефон</label>
+                    <input
+                      type="tel"
+                      placeholder="+7 (999) 123-45-67"
+                      value={newUser.phone}
+                      onChange={e => setNewUser({ ...newUser, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Роль</label>
+                    <select
+                      value={newUser.role_id}
+                      onChange={e => setNewUser({ ...newUser, role_id: Number(e.target.value) })}
+                      className="appearance-none w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white hover:border-blue-400"
+                      style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'12\' height=\'12\' fill=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M3 4.5l3 3 3-3\' stroke=\'%236B7280\' stroke-width=\'1.5\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.75rem' }}
+                    >
+                      {roles.filter(r => !r.isOwner && !r.is_owner).map(role => (
+                        <option key={role.id} value={role.id}>{role.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-4 flex justify-end">
+                    <button
+                      type="submit"
+                      className="w-full sm:w-auto px-6 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition text-sm shadow-sm"
+                    >
+                      Добавить пользователя
+                    </button>
+                  </div>
+                </form>
+              </div>
             </>
           )}
         </div>
@@ -327,23 +365,32 @@ const AccountSettings: React.FC = () => {
           </div>
           <div className="grid md:grid-cols-2 gap-6">
             {roles.map(role => (
-              <div key={role.id} className={`rounded-xl p-5 shadow border-2 flex flex-col gap-2 transition-all ${role.isOwner ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:border-primary'}`}>
+              <div key={role.id} className={`rounded-xl p-5 shadow border-2 flex flex-col gap-2 transition-all ${role.isOwner || role.is_owner ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:border-primary'}`}>
 <div className="flex items-center gap-2 mb-2">
-                  <span className={`font-bold text-lg ${role.isOwner ? 'text-blue-700' : ''}`}>{role.name}</span>
-                  {role.isOwner && <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Владелец</span>}
+                  <span className={`font-bold text-lg ${role.isOwner || role.is_owner ? 'text-blue-700' : ''}`}>{role.name}</span>
+                  {(role.isOwner || role.is_owner) && <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Владелец</span>}
                 </div>
                 <div className="text-gray-700 text-sm mb-2">
-                  {role.isOwner
+                  {role.isOwner || role.is_owner
                     ? 'Все права включены'
                     : `${role.permissions.length} из ${ALL_PERMISSIONS.length} прав включено`}
                 </div>
-                {!role.isOwner && (
-                  <button
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition w-fit text-sm"
-                    onClick={() => setEditRoleModal({ open: true, role })}
-                  >
-                    Редактировать
-                  </button>
+                {!(role.isOwner || role.is_owner) && (
+                  <div className="flex gap-2">
+                    <button
+                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition w-fit text-sm"
+                      onClick={() => setEditRoleModal({ open: true, role })}
+                    >
+                      Редактировать
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition w-fit text-sm"
+                      onClick={() => handleDeleteRole(role.id)}
+                      title="Удалить роль"
+                    >
+                      🗑️ Удалить
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -404,16 +451,7 @@ const AccountSettings: React.FC = () => {
                       </button>
                       <button
                         className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition"
-                        onClick={() => {
-                          if (!newRole.name.trim()) return;
-                          setRoles([...roles, {
-                            id: Date.now().toString(),
-                            name: newRole.name,
-                            permissions: newRole.permissions,
-                          }]);
-                          setNewRole({ name: '', permissions: [] });
-                          setNewRoleModal(false);
-                        }}
+                        onClick={handleAddRole}
                       >
                         Сохранить
                       </button>
@@ -487,6 +525,7 @@ const AccountSettings: React.FC = () => {
           </Transition.Root>
         </div>
       )}
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
     </div>
   );
 };

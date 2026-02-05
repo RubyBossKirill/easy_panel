@@ -16,8 +16,9 @@ interface RoleData {
 
 interface RoleResponse {
   status: boolean;
-  data: RoleData;
+  data?: RoleData;
   message?: string;
+  error?: string;
 }
 
 interface CreateRoleData {
@@ -66,8 +67,8 @@ export const rolesService = {
   /**
    * Удалить роль
    */
-  async deleteRole(id: number): Promise<{ status: boolean; message: string }> {
+  async deleteRole(id: number): Promise<{ status: boolean; message?: string; error?: string }> {
     const response = await apiClient.delete(`/roles/${id}`);
-    return response as { status: boolean; message: string };
+    return response as { status: boolean; message?: string; error?: string };
   },
 };

@@ -1,24 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getCurrentUser } from '../utils/auth';
+import { usersService } from '../services/usersService';
+import { User } from '../types';
+import { useToast } from '../hooks/useToast';
+import { STORAGE_KEYS } from '../config/api';
+import ToastContainer from '../components/ToastContainer';
 
 const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState({
-    firstName: 'Иван',
-    lastName: 'Иванов',
-    email: 'ivan.ivanov@example.com',
-    phone: '+7 (999) 123-45-67',
-    position: 'Консультант',
-    department: 'Продажи',
-    bio: 'Опытный консультант с 5-летним стажем работы в сфере продаж. Специализируюсь на работе с корпоративными клиентами.',
-    skills: ['Продажи', 'Консультации', 'Переговоры', 'CRM'],
+    name: '',
+    email: '',
+    phone: '',
+    telegram: '',
   });
+  const toast = useToast();
 
-  const handleSave = () => {
-    console.log('Saving profile:', profile);
-    setIsEditing(false);
+  // Загружаем данные пользователя при монтировании компонента
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      setUser(currentUser);
+      setProfile({
+        name: currentUser.name || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        telegram: currentUser.telegram || '',
+      });
+    }
+  }, []);
+
+  const handleSave = async () => {
+    if (!user) return;
+
+    try {
+      const response = await usersService.updateUser(user.id, {
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        telegram: profile.telegram,
+      });
+
+      if (response.status && response.data) {
+        // Обновляем localStorage с новыми данными
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.data.user));
+        setUser(response.data.user);
+        setProfile({
+          name: response.data.user.name || '',
+          email: response.data.user.email || '',
+          phone: response.data.user.phone || '',
+          telegram: response.data.user.telegram || '',
+        });
+        toast.success('Профиль успешно обновлен');
+        setIsEditing(false);
+      } else {
+        toast.error(response.message || 'Не удалось обновить профиль');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Не удалось обновить профиль');
+    }
   };
 
   const handleCancel = () => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        telegram: user.telegram || '',
+      });
+    }
     setIsEditing(false);
   };
 
@@ -29,44 +81,58 @@ const Profile: React.FC = () => {
     }));
   };
 
-  return (
-    <div className="p-4 md:p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Профиль</h1>
-        {!isEditing ? (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition flex items-center gap-2"
-          >
-            ✏️ Редактировать
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              onClick={handleCancel}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
-            >
-              Отмена
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-            >
-              💾 Сохранить
-            </button>
-          </div>
-        )}
+  if (!user) {
+    return (
+      <div className="p-4 md:p-8">
+        <div className="text-center">Загрузка...</div>
       </div>
+    );
+  }
 
-      <div className="bg-white rounded-xl shadow p-6">
+  const initials = profile.name
+    ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'U';
+
+  return (
+    <>
+      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
+      <div className="p-4 md:p-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Профиль</h1>
+          {!isEditing ? (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition flex items-center gap-2"
+            >
+              ✏️ Редактировать
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={handleCancel}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+              >
+                💾 Сохранить
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-6">
         {/* Заголовок профиля */}
         <div className="flex items-center mb-6">
           <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center text-2xl font-bold mr-6">
-            {profile.firstName[0]}{profile.lastName[0]}
+            {initials}
           </div>
           <div>
-            <h2 className="text-2xl font-semibold">{profile.firstName} {profile.lastName}</h2>
-            <p className="text-gray-600">{profile.position} • {profile.department}</p>
+            <h2 className="text-2xl font-semibold">{profile.name}</h2>
+            <p className="text-gray-600">{user.role?.name || 'Пользователь'}</p>
           </div>
         </div>
 
@@ -78,19 +144,8 @@ const Profile: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Имя</label>
             <input
               type="text"
-              value={profile.firstName}
-              onChange={(e) => handleInputChange('firstName', e.target.value)}
-              disabled={!isEditing}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Фамилия</label>
-            <input
-              type="text"
-              value={profile.lastName}
-              onChange={(e) => handleInputChange('lastName', e.target.value)}
+              value={profile.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
               disabled={!isEditing}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
             />
@@ -114,70 +169,45 @@ const Profile: React.FC = () => {
               value={profile.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
               disabled={!isEditing}
+              placeholder="+7 (999) 123-45-67"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Должность</label>
-            <select
-              value={profile.position}
-              onChange={(e) => handleInputChange('position', e.target.value)}
+            <label className="block text-sm font-medium text-gray-700 mb-2">Telegram</label>
+            <input
+              type="text"
+              value={profile.telegram}
+              onChange={(e) => handleInputChange('telegram', e.target.value)}
               disabled={!isEditing}
+              placeholder="@username"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-            >
-              <option value="Консультант">Консультант</option>
-              <option value="Менеджер">Менеджер</option>
-              <option value="Специалист">Специалист</option>
-              <option value="Руководитель">Руководитель</option>
-            </select>
+            />
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Отдел</label>
-            <select
-              value={profile.department}
-              onChange={(e) => handleInputChange('department', e.target.value)}
-              disabled={!isEditing}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-            >
-              <option value="Продажи">Продажи</option>
-              <option value="Маркетинг">Маркетинг</option>
-              <option value="Поддержка">Поддержка</option>
-              <option value="Разработка">Разработка</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">О себе</label>
-          <textarea
-            value={profile.bio}
-            onChange={(e) => handleInputChange('bio', e.target.value)}
-            disabled={!isEditing}
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-          />
         </div>
 
         <hr className="my-6" />
 
-        {/* Навыки */}
+        {/* Информация о роли */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">Навыки</h3>
-          <div className="flex flex-wrap gap-2">
-            {profile.skills.map((skill, index) => (
-              <span
-                key={index}
-                className="px-3 py-1 bg-primary text-white rounded-full text-sm font-medium"
-              >
-                {skill}
+          <h3 className="text-lg font-semibold mb-4">Роль и права доступа</h3>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-3 py-1 bg-primary text-white rounded-full text-sm font-medium">
+                {user.role?.name || 'Нет роли'}
               </span>
-            ))}
+            </div>
+            <p className="text-sm text-gray-600">
+              {user.role?.permissions && user.role.permissions.length > 0
+                ? `Права: ${user.role.permissions.join(', ')}`
+                : 'Нет прав доступа'}
+            </p>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
