@@ -3,6 +3,7 @@ import { getCurrentUser } from '../utils/auth';
 import { hasPermission } from '../utils/permissions';
 import { DEFAULT_ROLES } from '../utils/permissions';
 import { clientsService, Client } from '../services/clientsService';
+import toast from 'react-hot-toast';
 
 const Clients: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -11,12 +12,20 @@ const Clients: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'email' | 'created_at'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [viewClient, setViewClient] = useState<Client | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [editClient, setEditClient] = useState<Client | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Форма для создания/редактирования
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    telegram: '',
+    notes: ''
+  });
 
   const user = getCurrentUser();
 
@@ -79,10 +88,68 @@ const Clients: React.FC = () => {
 
     try {
       await clientsService.deleteClient(clientId);
-      alert('Клиент успешно удалён');
-      loadClients(); // Перезагрузить список
+      toast.success('Клиент успешно удалён');
+      loadClients();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Не удалось удалить клиента');
+      toast.error(err.response?.data?.error || 'Не удалось удалить клиента');
+    }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      toast.error('Имя клиента обязательно');
+      return;
+    }
+
+    try {
+      await clientsService.createClient(formData);
+      toast.success('Клиент успешно создан');
+      setIsCreateModalOpen(false);
+      setFormData({ name: '', email: '', phone: '', telegram: '', notes: '' });
+      loadClients();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Не удалось создать клиента');
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editClient) return;
+
+    try {
+      await clientsService.updateClient(editClient.id, formData);
+      toast.success('Клиент успешно обновлён');
+      setEditClient(null);
+      setFormData({ name: '', email: '', phone: '', telegram: '', notes: '' });
+      loadClients();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Не удалось обновить клиента');
+    }
+  };
+
+  const openCreateModal = () => {
+    setFormData({ name: '', email: '', phone: '', telegram: '', notes: '' });
+    setIsCreateModalOpen(true);
+  };
+
+  const openEditModal = (client: Client) => {
+    setFormData({
+      name: client.name,
+      email: client.email || '',
+      phone: client.phone || '',
+      telegram: client.telegram || '',
+      notes: client.notes || ''
+    });
+    setEditClient(client);
+  };
+
+  const openViewModal = async (clientId: number) => {
+    try {
+      const response = await clientsService.getClient(clientId);
+      setViewClient(response.data.client);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Не удалось загрузить данные клиента');
     }
   };
 
@@ -114,7 +181,7 @@ const Clients: React.FC = () => {
         <h1 className="text-3xl font-bold">Клиенты</h1>
         {canManageClients && (
           <button
-            onClick={() => alert('Функционал создания клиента будет добавлен в следующей версии')}
+            onClick={openCreateModal}
             className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
           >
             ➕ Добавить клиента
@@ -241,15 +308,17 @@ const Clients: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
-                          onClick={() => alert('Просмотр клиента будет добавлен в следующей версии')}
+                          onClick={() => openViewModal(client.id)}
                           className="text-blue-600 hover:text-blue-900 mr-3"
+                          title="Просмотр"
                         >
                           👁️
                         </button>
                         {canManageClients && (
                           <button
-                            onClick={() => alert('Редактирование клиента будет добавлено в следующей версии')}
+                            onClick={() => openEditModal(client)}
                             className="text-yellow-600 hover:text-yellow-900 mr-3"
+                            title="Редактировать"
                           >
                             ✏️
                           </button>
@@ -258,6 +327,7 @@ const Clients: React.FC = () => {
                           <button
                             onClick={() => handleDelete(client.id)}
                             className="text-red-600 hover:text-red-900"
+                            title="Удалить"
                           >
                             🗑️
                           </button>
@@ -336,6 +406,324 @@ const Clients: React.FC = () => {
       {loading && clients.length > 0 && (
         <div className="fixed bottom-4 right-4 bg-white shadow-lg rounded-lg px-4 py-2">
           Загрузка...
+        </div>
+      )}
+
+      {/* Модалка создания клиента */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <h2 className="text-2xl font-bold">Добавить клиента</h2>
+            </div>
+            <form onSubmit={handleCreate} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Имя <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Иван Иванов"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="ivan@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="+7 (999) 123-45-67"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Telegram</label>
+                  <input
+                    type="text"
+                    value={formData.telegram}
+                    onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="https://t.me/username или @username"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Заметки</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    rows={4}
+                    placeholder="Дополнительная информация о клиенте..."
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Создать
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модалка редактирования клиента */}
+      {editClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <h2 className="text-2xl font-bold">Редактировать клиента</h2>
+            </div>
+            <form onSubmit={handleUpdate} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Имя <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Telegram</label>
+                  <input
+                    type="text"
+                    value={formData.telegram}
+                    onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Заметки</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    rows={4}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Сохранить
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditClient(null)}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модалка просмотра клиента */}
+      {viewClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h2 className="text-2xl font-bold">{viewClient.name}</h2>
+              <button
+                onClick={() => setViewClient(null)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6">
+              {/* Основная информация */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Контактная информация</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm text-gray-500">Email:</span>
+                      <p className="text-gray-900">{viewClient.email || '—'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Телефон:</span>
+                      <p className="text-gray-900">{viewClient.phone || '—'}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Telegram:</span>
+                      <p className="text-gray-900">
+                        {viewClient.telegram ? (
+                          <a
+                            href={viewClient.telegram}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            {viewClient.telegram}
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {viewClient.stats && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Статистика</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-sm text-gray-500">Всего визитов:</span>
+                        <p className="text-gray-900 text-xl font-bold">{viewClient.stats.total_visits}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Ожидающих записей:</span>
+                        <p className="text-gray-900">{viewClient.stats.pending_appointments}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Подтверждённых записей:</span>
+                        <p className="text-gray-900">{viewClient.stats.confirmed_appointments}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Последний визит:</span>
+                        <p className="text-gray-900">{viewClient.stats.last_visit || '—'}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-500">Всего потрачено:</span>
+                        <p className="text-gray-900 text-xl font-bold">{viewClient.stats.total_spent} ₽</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Заметки */}
+              {viewClient.notes && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-2">Заметки</h3>
+                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">{viewClient.notes}</p>
+                </div>
+              )}
+
+              {/* История записей */}
+              {viewClient.appointments && viewClient.appointments.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Последние записи</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left">Дата</th>
+                          <th className="px-4 py-2 text-left">Время</th>
+                          <th className="px-4 py-2 text-left">Услуга</th>
+                          <th className="px-4 py-2 text-left">Статус</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {viewClient.appointments.map((apt) => (
+                          <tr key={apt.id}>
+                            <td className="px-4 py-2">{apt.date}</td>
+                            <td className="px-4 py-2">{apt.time}</td>
+                            <td className="px-4 py-2">{apt.service}</td>
+                            <td className="px-4 py-2">
+                              <span
+                                className={`px-2 py-1 rounded text-xs ${
+                                  apt.status === 'completed'
+                                    ? 'bg-green-100 text-green-800'
+                                    : apt.status === 'confirmed'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : apt.status === 'pending'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {apt.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* История платежей */}
+              {viewClient.payments && viewClient.payments.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Последние платежи</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left">Дата</th>
+                          <th className="px-4 py-2 text-left">Услуга</th>
+                          <th className="px-4 py-2 text-right">Сумма</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {viewClient.payments.map((payment) => (
+                          <tr key={payment.id}>
+                            <td className="px-4 py-2">{payment.paid_at}</td>
+                            <td className="px-4 py-2">{payment.service}</td>
+                            <td className="px-4 py-2 text-right font-semibold">{payment.amount} ₽</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
