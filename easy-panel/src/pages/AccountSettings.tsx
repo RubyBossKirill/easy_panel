@@ -106,35 +106,65 @@ const AccountSettings: React.FC = () => {
     }
   };
 
-  const handleAddRole = () => {
-    if (!newRole.name.trim()) return;
-    setRoles([...roles, {
-      id: Date.now().toString(),
-      name: newRole.name,
-      permissions: newRole.permissions,
-    }]);
-    setNewRole({ name: '', permissions: [] });
+  const handleAddRole = async () => {
+    if (!newRole.name.trim()) {
+      alert('Введите название роли');
+      return;
+    }
+    try {
+      await rolesService.createRole({
+        name: newRole.name,
+        permissions: newRole.permissions,
+      });
+      alert('Роль успешно создана');
+      setNewRole({ name: '', permissions: [] });
+      setNewRoleModal(false);
+      loadRoles(); // Перезагрузить роли
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Не удалось создать роль');
+    }
   };
 
-  const handlePermissionToggle = (roleId: string, perm: Permission) => {
-    setRoles(roles.map(role =>
-      role.id === roleId
-        ? { ...role, permissions: role.permissions.includes(perm)
-            ? role.permissions.filter(p => p !== perm)
-            : [...role.permissions, perm] }
-        : role
-    ));
+  const handlePermissionToggle = async (roleId: number | string, perm: Permission) => {
+    const role = roles.find(r => r.id === roleId);
+    if (!role) return;
+
+    const updatedPermissions = role.permissions.includes(perm)
+      ? role.permissions.filter(p => p !== perm)
+      : [...role.permissions, perm];
+
+    try {
+      await rolesService.updateRole(Number(roleId), { permissions: updatedPermissions });
+      loadRoles(); // Перезагрузить роли
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Не удалось изменить права');
+    }
   };
 
-  const handleDeleteRole = (roleId: string) => {
-    setRoles(roles.filter(r => r.id !== roleId));
-    // Заглушка: backend для управления ролями пока не реализован
+  const handleDeleteRole = async (roleId: number | string) => {
+    if (!window.confirm('Вы уверены, что хотите удалить эту роль?')) return;
+    try {
+      await rolesService.deleteRole(Number(roleId));
+      alert('Роль успешно удалена');
+      loadRoles(); // Перезагрузить роли
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Не удалось удалить роль');
+    }
   };
 
-  const handleEditRoleName = (roleId: string, name: string) => {
-    setRoles(roles.map(r => r.id === roleId ? { ...r, name } : r));
-    setEditingRoleId(null);
-    setEditingRoleName('');
+  const handleEditRoleName = async (roleId: number | string, name: string) => {
+    if (!name.trim()) {
+      alert('Введите название роли');
+      return;
+    }
+    try {
+      await rolesService.updateRole(Number(roleId), { name });
+      setEditingRoleId(null);
+      setEditingRoleName('');
+      loadRoles(); // Перезагрузить роли
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Не удалось изменить название роли');
+    }
   };
 
   return (
