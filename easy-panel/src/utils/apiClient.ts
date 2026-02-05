@@ -195,6 +195,24 @@ class ApiClient {
     }
   }
 
+  async patch<T = any>(endpoint: string, data?: any, isAuth: boolean = true): Promise<ApiResponse<T>> {
+    const makeRequest = () => fetch(`${this.baseURL}${endpoint}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(isAuth),
+      body: data ? JSON.stringify(data) : undefined,
+    });
+
+    try {
+      const response = await makeRequest();
+      return this.handleResponse<T>(response, isAuth ? makeRequest : undefined);
+    } catch (error) {
+      return {
+        status: false,
+        message: error instanceof Error ? error.message : 'Network error',
+      };
+    }
+  }
+
   async delete<T = any>(endpoint: string, isAuth: boolean = true): Promise<ApiResponse<T>> {
     const makeRequest = () => fetch(`${this.baseURL}${endpoint}`, {
       method: 'DELETE',

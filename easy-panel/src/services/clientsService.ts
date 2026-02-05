@@ -78,6 +78,14 @@ export interface ClientResponse {
 
 export const clientsService = {
   /**
+   * Получить список всех клиентов (упрощенный метод)
+   */
+  async getAll(): Promise<Client[]> {
+    const response = await this.getClients();
+    return response.data.clients;
+  },
+
+  /**
    * Получить список клиентов
    */
   async getClients(params?: ClientsListParams): Promise<ClientsListResponse> {
