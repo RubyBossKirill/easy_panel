@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_05_071547) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_05_140909) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -21,14 +21,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_071547) do
     t.time "time", null: false
     t.integer "duration", null: false
     t.string "service"
-    t.string "status", default: "pending", null: false
+    t.string "status"
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "time_slot_id"
     t.index ["client_id"], name: "index_appointments_on_client_id"
     t.index ["employee_id", "date"], name: "index_appointments_on_employee_id_and_date"
     t.index ["employee_id"], name: "index_appointments_on_employee_id"
     t.index ["status"], name: "index_appointments_on_status"
+    t.index ["time_slot_id"], name: "index_appointments_on_time_slot_id"
   end
 
   create_table "clients", force: :cascade do |t|
@@ -78,6 +80,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_071547) do
     t.index ["name"], name: "index_roles_on_name", unique: true
   end
 
+  create_table "services", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.bigint "employee_id", null: false
+    t.decimal "price", precision: 10, scale: 2, null: false
+    t.integer "duration", default: 60, null: false
+    t.boolean "is_active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employee_id", "name"], name: "index_services_on_employee_id_and_name", unique: true
+    t.index ["employee_id"], name: "index_services_on_employee_id"
+  end
+
   create_table "time_slots", force: :cascade do |t|
     t.bigint "employee_id", null: false
     t.date "date", null: false
@@ -106,10 +121,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_071547) do
   end
 
   add_foreign_key "appointments", "clients"
+  add_foreign_key "appointments", "time_slots"
   add_foreign_key "appointments", "users", column: "employee_id"
   add_foreign_key "payments", "appointments"
   add_foreign_key "payments", "clients"
   add_foreign_key "refresh_tokens", "users"
+  add_foreign_key "services", "users", column: "employee_id"
   add_foreign_key "time_slots", "appointments"
   add_foreign_key "time_slots", "users", column: "employee_id"
   add_foreign_key "users", "roles"

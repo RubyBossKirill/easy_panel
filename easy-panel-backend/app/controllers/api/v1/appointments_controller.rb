@@ -9,8 +9,8 @@ module Api
       def index
         @appointments = Appointment.includes(:client, :employee)
 
-        # Фильтрация по сотруднику (если не Owner/Admin - видит только свои)
-        unless current_user.role.name == 'Owner' || current_user.role.name == 'Admin'
+        # Фильтрация по сотруднику (если не может видеть все - видит только свои)
+        unless current_user.can_view_all?
           @appointments = @appointments.for_employee(current_user.id)
         end
 
@@ -50,16 +50,26 @@ module Api
         # Если employee_id не указан, используем current_user
         @appointment.employee_id ||= current_user.id
 
-        if @appointment.save
-          render json: @appointment.as_json(
-            include: {
-              client: { only: [:id, :name, :phone, :email] },
-              employee: { only: [:id, :name, :email] }
-            }
-          ), status: :created
-        else
-          render json: { errors: @appointment.errors.full_messages }, status: :unprocessable_entity
+        ActiveRecord::Base.transaction do
+          if @appointment.save
+            # Если указан time_slot_id, обновляем слот
+            if @appointment.time_slot_id.present?
+              time_slot = TimeSlot.find(@appointment.time_slot_id)
+              time_slot.update!(available: false, appointment_id: @appointment.id)
+            end
+
+            render json: @appointment.as_json(
+              include: {
+                client: { only: [:id, :name, :phone, :email] },
+                employee: { only: [:id, :name, :email] }
+              }
+            ), status: :created
+          else
+            render json: { errors: @appointment.errors.full_messages }, status: :unprocessable_entity
+          end
         end
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: [e.message] }, status: :unprocessable_entity
       end
 
       # PATCH/PUT /api/v1/appointments/:id
@@ -78,8 +88,18 @@ module Api
 
       # DELETE /api/v1/appointments/:id
       def destroy
-        @appointment.destroy
+        ActiveRecord::Base.transaction do
+          # Если есть связанный time_slot, освобождаем его
+          if @appointment.time_slot_id.present?
+            time_slot = TimeSlot.find(@appointment.time_slot_id)
+            time_slot.update!(available: true, appointment_id: nil)
+          end
+
+          @appointment.destroy
+        end
         head :no_content
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { errors: [e.message] }, status: :unprocessable_entity
       end
 
       # PATCH /api/v1/appointments/:id/update_status
@@ -108,7 +128,7 @@ module Api
         @appointment = Appointment.includes(:client, :employee).find(params[:id])
 
         # Employee может видеть только свои записи
-        unless current_user.has_role?(:owner) || current_user.has_role?(:admin) || @appointment.employee_id == current_user.id
+        unless current_user.can_view_all? || @appointment.employee_id == current_user.id
           render json: { error: 'Forbidden' }, status: :forbidden
         end
       rescue ActiveRecord::RecordNotFound
@@ -130,7 +150,7 @@ module Api
       end
 
       def check_permissions
-        unless current_user.has_permission?('manage_appointments')
+        unless current_user.has_permission?('manage_schedule')
           render json: { error: 'You do not have permission to perform this action' }, status: :forbidden
         end
       end

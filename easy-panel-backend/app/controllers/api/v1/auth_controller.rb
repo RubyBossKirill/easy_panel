@@ -2,9 +2,9 @@ class Api::V1::AuthController < ApplicationController
   skip_before_action :authenticate_request, only: %i[login register refresh]
 
   def login
-    user = User.find_by(email: params[:email]&.downcase)
+    user = User.find_by(email: login_params[:email]&.downcase)
 
-    if user&.authenticate(params[:password])
+    if user&.authenticate(login_params[:password])
       tokens = generate_tokens(user)
       render json: {
         status: true,
@@ -141,6 +141,12 @@ class Api::V1::AuthController < ApplicationController
       access_token: JsonWebToken.encode_access_token(user.id),
       refresh_token: JsonWebToken.encode_refresh_token(refresh_token.id)
     }
+  end
+
+  def login_params
+    params.require(:user).permit(:email, :password)
+  rescue ActionController::ParameterMissing
+    params.permit(:email, :password)
   end
 
   def register_params

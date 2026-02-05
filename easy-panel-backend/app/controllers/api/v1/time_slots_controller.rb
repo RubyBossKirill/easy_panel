@@ -10,9 +10,7 @@ module Api
         @time_slots = TimeSlot.includes(:employee, :appointment)
 
         # Employee может видеть только свои слоты
-        unless current_user.has_role?(:owner) || current_user.has_role?(:admin)
-          @time_slots = @time_slots.where(employee_id: current_user.id)
-        end
+        @time_slots = @time_slots.where(employee_id: current_user.id) unless current_user.can_view_all?
 
         # Фильтры
         @time_slots = @time_slots.where(employee_id: params[:employee_id]) if params[:employee_id].present?
@@ -112,8 +110,13 @@ module Api
           end
 
           if created_slots.any?
+            slots_word = case created_slots.count
+                         when 1 then 'слот'
+                         when 2..4 then 'слота'
+                         else 'слотов'
+                         end
             render json: {
-              message: "Created #{created_slots.count} time slots",
+              message: "Создано #{created_slots.count} #{slots_word}",
               time_slots: created_slots.as_json(
                 include: {
                   employee: { only: [:id, :name, :email] }
@@ -121,7 +124,7 @@ module Api
               )
             }, status: :created
           else
-            render json: { error: 'No time slots were created' }, status: :unprocessable_entity
+            render json: { error: 'Не удалось создать слоты' }, status: :unprocessable_entity
           end
 
         rescue ArgumentError => e
@@ -154,7 +157,7 @@ module Api
         @time_slot = TimeSlot.includes(:employee, :appointment).find(params[:id])
 
         # Employee может управлять только своими слотами
-        unless current_user.has_role?(:owner) || current_user.has_role?(:admin) || @time_slot.employee_id == current_user.id
+        unless current_user.can_view_all? || @time_slot.employee_id == current_user.id
           render json: { error: 'Forbidden' }, status: :forbidden
         end
       rescue ActiveRecord::RecordNotFound

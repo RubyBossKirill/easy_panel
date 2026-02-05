@@ -4,9 +4,12 @@ import { hasPermission, DEFAULT_ROLES } from '../utils/permissions';
 import { timeSlotsService } from '../services/timeSlotsService';
 import { appointmentsService } from '../services/appointmentsService';
 import { clientsService } from '../services/clientsService';
+import { servicesService } from '../services/servicesService';
+import { usersService } from '../services/usersService';
 import { TimeSlot } from '../types/timeSlot';
 import { Appointment } from '../types/appointment';
 import { Client } from '../types/client';
+import { Service } from '../types/service';
 import toast from 'react-hot-toast';
 
 const Schedule: React.FC = () => {
@@ -15,7 +18,11 @@ const Schedule: React.FC = () => {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [filteredServices, setFilteredServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
+  const [monthSlots, setMonthSlots] = useState<TimeSlot[]>([]);
 
   // Модальные окна
   const [showBulkCreateModal, setShowBulkCreateModal] = useState(false);
@@ -33,6 +40,8 @@ const Schedule: React.FC = () => {
   // Форма записи на прием
   const [appointmentForm, setAppointmentForm] = useState({
     client_id: 0,
+    employee_id: 0,
+    service_id: 0,
     service: '',
     notes: '',
   });
@@ -48,7 +57,24 @@ const Schedule: React.FC = () => {
 
   useEffect(() => {
     loadClients();
-  }, []);
+    loadEmployees();
+    loadServices();
+    loadMonthSlots();
+  }, [currentDate]);
+
+  // Автоматически выбрать текущего сотрудника если он не Owner/Admin
+  useEffect(() => {
+    if (showAppointmentModal && user && employees.length > 0 && services.length > 0) {
+      const canViewAll = user.role?.is_owner || user.role?.permissions?.includes('view_all_clients');
+
+      if (!canViewAll && appointmentForm.employee_id === 0) {
+        // Сотрудник видит только себя и свои услуги (устанавливаем только если еще не установлено)
+        setAppointmentForm(prev => ({ ...prev, employee_id: user.id }));
+        const employeeServices = services.filter(s => s.employee_id === user.id);
+        setFilteredServices(employeeServices);
+      }
+    }
+  }, [showAppointmentModal, user, employees, services, appointmentForm.employee_id]);
 
   if (!user) return null;
 
@@ -85,6 +111,44 @@ const Schedule: React.FC = () => {
     }
   };
 
+  const loadEmployees = async () => {
+    try {
+      const response = await usersService.getUsers();
+      setEmployees(response?.data?.users || []);
+    } catch (error) {
+      console.error('Error loading employees:', error);
+      setEmployees([]);
+    }
+  };
+
+  const loadServices = async () => {
+    try {
+      const data = await servicesService.getAll({ is_active: true });
+      setServices(data || []);
+    } catch (error) {
+      console.error('Error loading services:', error);
+      setServices([]);
+    }
+  };
+
+  const loadMonthSlots = async () => {
+    try {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+
+      const fromDate = formatDate(firstDay);
+      const toDate = formatDate(lastDay);
+
+      const data = await timeSlotsService.getAll({ from_date: fromDate, to_date: toDate });
+      setMonthSlots(data || []);
+    } catch (error) {
+      console.error('Error loading month slots:', error);
+      setMonthSlots([]);
+    }
+  };
+
   // Календарь
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -106,6 +170,44 @@ const Schedule: React.FC = () => {
     return `${y}-${m}-${d}`;
   };
 
+  const formatDateTime = (dateStr: string, timeStr: string) => {
+    // dateStr в формате YYYY-MM-DD
+    // timeStr может быть в формате HH:MM или ISO string
+    try {
+      const [year, month, day] = dateStr.split('-');
+
+      // Извлекаем время из строки (если ISO формат или обычный HH:MM)
+      let hours = '00';
+      let minutes = '00';
+
+      if (timeStr.includes('T')) {
+        // ISO формат: 2000-01-01T09:00:00.000Z
+        const timeDate = new Date(timeStr);
+        hours = timeDate.getHours().toString().padStart(2, '0');
+        minutes = timeDate.getMinutes().toString().padStart(2, '0');
+      } else {
+        // Формат HH:MM
+        [hours, minutes] = timeStr.split(':');
+      }
+
+      return `${day}.${month}.${year} ${hours}:${minutes}`;
+    } catch (error) {
+      console.error('Error formatting date time:', error);
+      return timeStr;
+    }
+  };
+
+  const formatDateDisplay = (dateStr: string) => {
+    // dateStr в формате YYYY-MM-DD
+    try {
+      const [year, month, day] = dateStr.split('-');
+      return `${day}.${month}.${year}`;
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateStr;
+    }
+  };
+
   const isToday = (date: Date) => {
     const today = new Date();
     return date.getFullYear() === today.getFullYear() &&
@@ -114,6 +216,21 @@ const Schedule: React.FC = () => {
   };
 
   const isSelected = (date: Date) => formatDate(date) === selectedDate;
+
+  const getDayStatus = (date: Date) => {
+    const dateStr = formatDate(date);
+    const daySlots = monthSlots.filter(slot => slot.date === dateStr);
+
+    if (daySlots.length === 0) return 'empty'; // Нет слотов
+
+    const occupiedSlots = daySlots.filter(slot => slot.appointment || !slot.available);
+    const freeSlots = daySlots.filter(slot => !slot.appointment && slot.available);
+
+    if (freeSlots.length > 0) return 'available'; // Есть свободные слоты - зеленый
+    if (occupiedSlots.length === daySlots.length) return 'full'; // Все заняты - красный
+
+    return 'empty';
+  };
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(formatDate(date));
@@ -144,6 +261,7 @@ const Schedule: React.FC = () => {
       toast.success(result.message);
       setShowBulkCreateModal(false);
       loadData();
+      loadMonthSlots(); // Обновляем индикаторы на календаре
     } catch (error: any) {
       console.error('Error creating slots:', error);
       toast.error(error.response?.data?.error || 'Ошибка создания слотов');
@@ -167,8 +285,10 @@ const Schedule: React.FC = () => {
 
       toast.success('Запись создана');
       setShowAppointmentModal(false);
-      setAppointmentForm({ client_id: 0, service: '', notes: '' });
+      setAppointmentForm({ client_id: 0, employee_id: 0, service_id: 0, service: '', notes: '' });
+      setFilteredServices([]);
       loadData();
+      loadMonthSlots(); // Обновляем индикаторы на календаре
     } catch (error: any) {
       console.error('Error creating appointment:', error);
       toast.error(error.response?.data?.errors?.join(', ') || 'Ошибка создания записи');
@@ -183,9 +303,40 @@ const Schedule: React.FC = () => {
       await timeSlotsService.delete(slotId);
       toast.success('Слот удален');
       loadData();
+      loadMonthSlots(); // Обновляем индикаторы на календаре
     } catch (error) {
       console.error('Error deleting slot:', error);
       toast.error('Ошибка удаления слота');
+    }
+  };
+
+  // Отметить статус встречи
+  const handleMarkAppointment = async (appointmentId: number, status: 'completed' | 'cancelled') => {
+    const statusText = status === 'completed' ? 'Состоялась' : 'Не состоялась';
+
+    try {
+      await appointmentsService.update(appointmentId, { status });
+      toast.success(`Встреча отмечена: ${statusText}`);
+      loadData();
+      loadMonthSlots();
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+      toast.error('Ошибка обновления статуса');
+    }
+  };
+
+  // Удаление записи
+  const handleCancelAppointment = async (appointmentId: number) => {
+    if (!window.confirm('Удалить запись клиента?')) return;
+
+    try {
+      await appointmentsService.delete(appointmentId);
+      toast.success('Запись удалена');
+      loadData();
+      loadMonthSlots(); // Обновляем индикаторы на календаре
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      toast.error('Ошибка удаления записи');
     }
   };
 
@@ -226,27 +377,37 @@ const Schedule: React.FC = () => {
             <div key={day} className="text-center font-semibold text-gray-600 py-2">{day}</div>
           ))}
 
-          {days.map((date, idx) => (
-            <div
-              key={idx}
-              onClick={() => date && handleDateClick(date)}
-              className={`
-                p-2 text-center rounded cursor-pointer transition-colors
-                ${!date ? 'invisible' : ''}
-                ${date && isToday(date) ? 'bg-blue-100 font-bold' : ''}
-                ${date && isSelected(date) ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}
-              `}
-            >
-              {date?.getDate()}
-            </div>
-          ))}
+          {days.map((date, idx) => {
+            const dayStatus = date ? getDayStatus(date) : 'empty';
+
+            return (
+              <div
+                key={idx}
+                onClick={() => date && handleDateClick(date)}
+                className={`
+                  p-2 text-center rounded cursor-pointer transition-colors relative
+                  ${!date ? 'invisible' : ''}
+                  ${date && isToday(date) ? 'bg-blue-100 font-bold' : ''}
+                  ${date && isSelected(date) ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}
+                `}
+              >
+                {date?.getDate()}
+                {date && dayStatus !== 'empty' && (
+                  <div className={`absolute bottom-1 right-1 w-2 h-2 rounded-full ${
+                    dayStatus === 'available' ? 'bg-green-500' :
+                    dayStatus === 'full' ? 'bg-red-500' : ''
+                  }`}></div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Слоты выбранной даты */}
       {selectedDate && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Слоты на {selectedDate}</h2>
+          <h2 className="text-xl font-semibold mb-4">Слоты на {formatDateDisplay(selectedDate)}</h2>
 
           {loading ? (
             <p className="text-gray-500">Загрузка...</p>
@@ -267,16 +428,51 @@ const Schedule: React.FC = () => {
                     `}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-lg">{slot.time}</span>
+                      <span className="font-semibold text-lg">{formatDateTime(slot.date, slot.time)}</span>
                       <span className="text-sm text-gray-600">{slot.duration} мин</span>
                     </div>
 
                     {isOccupied ? (
-                      <div className="text-sm">
-                        <p className="font-medium text-green-700">
-                          {slot.appointment?.client?.name || appointment?.client?.name}
-                        </p>
-                        <p className="text-gray-600">{slot.appointment?.service || appointment?.service}</p>
+                      <div>
+                        <div className="text-sm mb-2">
+                          <p className="font-medium text-green-700">
+                            {slot.appointment?.client?.name || appointment?.client?.name}
+                          </p>
+                          <p className="text-gray-600">{slot.appointment?.service || appointment?.service}</p>
+                          {(slot.appointment?.status || appointment?.status) && (
+                            <p className="text-xs mt-1">
+                              {(slot.appointment?.status || appointment?.status) === 'completed' ? '✅ Состоялась' : '❌ Не состоялась'}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {/* Для Owner/Admin всегда показываем все кнопки, для сотрудников - только если нет статуса */}
+                          {(user?.role?.is_owner || user?.role?.permissions?.includes('view_all_clients') || !(slot.appointment?.status || appointment?.status)) && (
+                            <>
+                              <button
+                                onClick={() => handleMarkAppointment(slot.appointment?.id || appointment?.id || 0, 'completed')}
+                                className="flex-1 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                ✓ Состоялась
+                              </button>
+                              <button
+                                onClick={() => handleMarkAppointment(slot.appointment?.id || appointment?.id || 0, 'cancelled')}
+                                className="flex-1 px-2 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                ✗ Не состоялась
+                              </button>
+                            </>
+                          )}
+                          {/* Кнопка удаления: Owner/Admin видят всегда, сотрудники - только если нет статуса */}
+                          {(user?.role?.is_owner || user?.role?.permissions?.includes('view_all_clients') || !(slot.appointment?.status || appointment?.status)) && (
+                            <button
+                              onClick={() => handleCancelAppointment(slot.appointment?.id || appointment?.id || 0)}
+                              className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                            >
+                              Удалить
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div className="flex gap-2 mt-2">
@@ -306,7 +502,7 @@ const Schedule: React.FC = () => {
       {showBulkCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Создать слоты на {selectedDate}</h2>
+            <h2 className="text-xl font-bold mb-4">Создать слоты на {formatDateDisplay(selectedDate)}</h2>
 
             <div className="space-y-4">
               <div>
@@ -373,7 +569,7 @@ const Schedule: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">
-              Запись на {selectedTimeSlot.date} в {selectedTimeSlot.time}
+              Запись на {formatDateTime(selectedTimeSlot.date, selectedTimeSlot.time)}
             </h2>
 
             <div className="space-y-4">
@@ -392,14 +588,54 @@ const Schedule: React.FC = () => {
               </div>
 
               <div>
+                <label className="block text-sm font-medium mb-1">Сотрудник</label>
+                <select
+                  value={appointmentForm.employee_id}
+                  onChange={(e) => {
+                    const employeeId = Number(e.target.value);
+                    setAppointmentForm({
+                      ...appointmentForm,
+                      employee_id: employeeId,
+                      service_id: 0,
+                      service: '',
+                    });
+                    // Фильтруем услуги по выбранному сотруднику
+                    const employeeServices = services.filter(s => s.employee_id === employeeId);
+                    setFilteredServices(employeeServices);
+                  }}
+                  className="w-full px-3 py-2 border rounded disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  disabled={user && !user.role?.is_owner && !user.role?.permissions?.includes('view_all_clients')}
+                >
+                  <option value={0}>Выберите сотрудника</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium mb-1">Услуга</label>
-                <input
-                  type="text"
-                  value={appointmentForm.service}
-                  onChange={(e) => setAppointmentForm({ ...appointmentForm, service: e.target.value })}
-                  placeholder="Консультация"
+                <select
+                  value={appointmentForm.service_id}
+                  onChange={(e) => {
+                    const serviceId = Number(e.target.value);
+                    const selectedService = filteredServices.find(s => s.id === serviceId);
+                    setAppointmentForm({
+                      ...appointmentForm,
+                      service_id: serviceId,
+                      service: selectedService?.name || '',
+                    });
+                  }}
                   className="w-full px-3 py-2 border rounded"
-                />
+                  disabled={!appointmentForm.employee_id}
+                >
+                  <option value={0}>Выберите услугу</option>
+                  {filteredServices.map(service => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} - {parseFloat(service.price).toLocaleString('ru-RU')} ₽ ({service.duration} мин)
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -425,7 +661,8 @@ const Schedule: React.FC = () => {
               <button
                 onClick={() => {
                   setShowAppointmentModal(false);
-                  setAppointmentForm({ client_id: 0, service: '', notes: '' });
+                  setAppointmentForm({ client_id: 0, employee_id: 0, service_id: 0, service: '', notes: '' });
+                  setFilteredServices([]);
                 }}
                 className="flex-1 px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
               >

@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 const menuItems = [
   { text: 'Панель управления', icon: '📊', path: '/', permission: 'view_dashboard' },
   { text: 'Расписание', icon: '📅', path: '/schedule', permission: 'manage_schedule' },
+  { text: 'Услуги', icon: '💼', path: '/services', permission: 'manage_schedule' },
   { text: 'Клиенты', icon: '👥', path: '/clients', permission: 'view_clients' },
   { text: 'Профиль', icon: '👤', path: '/profile', permission: null },
   { text: 'Настройки', icon: '⚙️', path: '/settings', permission: 'manage_users' },

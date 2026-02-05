@@ -10,25 +10,49 @@ import { DashboardStats } from '../types/dashboard';
 import { Appointment } from '../types/appointment';
 import toast from 'react-hot-toast';
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'confirmed':
-      return 'bg-green-100 text-green-800';
-    case 'pending':
-      return 'bg-yellow-100 text-yellow-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
+const formatDateTime = (dateStr: string, timeStr: string) => {
+  try {
+    const [year, month, day] = dateStr.split('-');
+
+    let hours = '00';
+    let minutes = '00';
+
+    if (timeStr.includes('T')) {
+      // ISO формат: 2000-01-01T09:00:00.000Z
+      const timeDate = new Date(timeStr);
+      hours = timeDate.getHours().toString().padStart(2, '0');
+      minutes = timeDate.getMinutes().toString().padStart(2, '0');
+    } else {
+      // Формат HH:MM
+      [hours, minutes] = timeStr.split(':');
+    }
+
+    return `${day}.${month}.${year} ${hours}:${minutes}`;
+  } catch (error) {
+    console.error('Error formatting date time:', error);
+    return timeStr;
   }
 };
 
-const getStatusText = (status: string) => {
+const getStatusColor = (status?: string | null) => {
   switch (status) {
-    case 'confirmed':
-      return 'Подтверждено';
-    case 'pending':
-      return 'Ожидает подтверждения';
+    case 'completed':
+      return 'bg-green-100 text-green-800';
+    case 'cancelled':
+      return 'bg-red-100 text-red-800';
     default:
-      return 'Неизвестно';
+      return 'bg-blue-100 text-blue-800';
+  }
+};
+
+const getStatusText = (status?: string | null) => {
+  switch (status) {
+    case 'completed':
+      return 'Состоялась';
+    case 'cancelled':
+      return 'Не состоялась';
+    default:
+      return 'Запланирована';
   }
 };
 
@@ -71,8 +95,8 @@ const Dashboard: React.FC = () => {
       setStats(statsData);
 
       // Sort appointments by time and get next 3
+      // Показываем все встречи (включая состоявшиеся и не состоявшиеся)
       const sortedAppointments = (appointmentsData || [])
-        .filter(a => a.status !== 'cancelled' && a.status !== 'completed')
         .sort((a, b) => {
           const dateTimeA = new Date(`${a.date}T${a.time}`);
           const dateTimeB = new Date(`${b.date}T${b.time}`);
@@ -207,7 +231,7 @@ const Dashboard: React.FC = () => {
                       </div>
                       <div>
                         <div className="font-medium">{clientName}</div>
-                        <div className="text-sm text-gray-500">{a.time} — {a.service || 'Консультация'}</div>
+                        <div className="text-sm text-gray-500">{formatDateTime(a.date, a.time)} — {a.service || 'Консультация'}</div>
                       </div>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(a.status)}`}>{getStatusText(a.status)}</span>

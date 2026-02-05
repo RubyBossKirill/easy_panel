@@ -10,19 +10,19 @@ module Api
         end
 
         # Filter appointments based on user role
-        base_appointments = if current_user.role == 'Employee'
-          Appointment.where(employee_id: current_user.id)
-        else
-          Appointment.all
-        end
+        base_appointments = if current_user.can_view_all?
+                              Appointment.all
+                            else
+                              Appointment.where(employee_id: current_user.id)
+                            end
 
         # Filter clients based on user role
-        base_clients = if current_user.role == 'Employee'
-          # Employees see clients they have appointments with
-          Client.joins(:appointments).where(appointments: { employee_id: current_user.id }).distinct
-        else
-          Client.all
-        end
+        base_clients = if current_user.can_view_all?
+                         Client.all
+                       else
+                         # Employees see clients they have appointments with
+                         Client.joins(:appointments).where(appointments: { employee_id: current_user.id }).distinct
+                       end
 
         today = Date.today
 

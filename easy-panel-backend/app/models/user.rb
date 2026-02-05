@@ -4,6 +4,7 @@ class User < ApplicationRecord
   belongs_to :role
   has_many :appointments, foreign_key: :employee_id, dependent: :destroy
   has_many :time_slots, foreign_key: :employee_id, dependent: :destroy
+  has_many :services, foreign_key: :employee_id, dependent: :destroy
   has_many :clients, foreign_key: :created_by, dependent: :nullify
   has_many :refresh_tokens, dependent: :destroy
 
@@ -16,6 +17,18 @@ class User < ApplicationRecord
 
   def has_permission?(permission)
     role&.permissions&.include?(permission.to_s)
+  end
+
+  def owner?
+    role&.is_owner == true
+  end
+
+  def can_view_all?
+    owner? || has_permission?('view_all_clients')
+  end
+
+  def can_manage_all?
+    owner? || has_permission?('manage_all_clients')
   end
 
   private

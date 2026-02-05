@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import AdminLayout from './components/layout/AdminLayout';
 import Dashboard from './pages/Dashboard';
 import Schedule from './pages/Schedule';
+import Services from './pages/Services';
 import Clients from './pages/Clients';
 import ClientProfile from './pages/ClientProfile';
 import Profile from './pages/Profile';
@@ -54,6 +55,7 @@ function App() {
             <Route path="/" element={<AdminLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="schedule" element={<Schedule />} />
+              <Route path="services" element={<Services />} />
               <Route path="clients" element={<Clients />} />
               <Route path="clients/:id" element={<ClientProfile />} />
               <Route path="profile" element={<Profile />} />

@@ -82,7 +82,11 @@ export const clientsService = {
    */
   async getAll(): Promise<Client[]> {
     const response = await this.getClients();
-    return response.data.clients;
+    // Backend returns {status: true, data: {clients: [...], ...}}
+    if (response.status && response.data && response.data.clients) {
+      return response.data.clients;
+    }
+    return [];
   },
 
   /**

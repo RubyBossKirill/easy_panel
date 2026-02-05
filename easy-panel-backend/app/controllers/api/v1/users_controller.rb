@@ -1,6 +1,6 @@
 class Api::V1::UsersController < ApplicationController
   before_action :set_user, only: %i[show update destroy]
-  before_action :check_manage_users_permission, only: %i[index create]
+  before_action :check_manage_users_permission, only: %i[create]
   before_action :check_delete_users_permission, only: [:destroy]
 
   # GET /api/v1/users

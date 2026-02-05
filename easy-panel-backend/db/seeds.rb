@@ -1,12 +1,16 @@
 # Clear existing data in development
 if Rails.env.development?
   puts "Clearing existing data..."
-  User.destroy_all
-  Role.destroy_all
-  Client.destroy_all
-  Appointment.destroy_all
-  TimeSlot.destroy_all
-  Payment.destroy_all
+  # Отключаем foreign key constraints, чтобы избежать циклических зависимостей
+  ActiveRecord::Base.connection.execute('SET session_replication_role = replica;')
+  TimeSlot.delete_all
+  Appointment.delete_all
+  Payment.delete_all
+  Client.delete_all
+  RefreshToken.delete_all
+  User.delete_all
+  Role.delete_all
+  ActiveRecord::Base.connection.execute('SET session_replication_role = DEFAULT;')
 end
 
 puts "Creating roles..."
@@ -112,6 +116,53 @@ created_clients = clients.map do |client_data|
   end
 end
 
+puts "Creating services..."
+
+# Create sample services
+services_data = [
+  {
+    name: 'Индивидуальная консультация',
+    description: 'Персональная консультация психолога (60 минут)',
+    employee: owner,
+    price: 5000,
+    duration: 60,
+    is_active: true
+  },
+  {
+    name: 'Парная консультация',
+    description: 'Консультация для пар (90 минут)',
+    employee: owner,
+    price: 7000,
+    duration: 90,
+    is_active: true
+  },
+  {
+    name: 'Групповая терапия',
+    description: 'Сессия групповой терапии (120 минут)',
+    employee: admin,
+    price: 3000,
+    duration: 120,
+    is_active: true
+  },
+  {
+    name: 'Первичная консультация',
+    description: 'Знакомство и первичная диагностика (45 минут)',
+    employee: employee,
+    price: 3500,
+    duration: 45,
+    is_active: true
+  }
+]
+
+created_services = services_data.map do |service_data|
+  Service.find_or_create_by!(
+    name: service_data[:name],
+    employee: service_data[:employee]
+  ) do |service|
+    service.assign_attributes(service_data.except(:employee))
+  end
+end
+
 puts "Creating appointments..."
 
 # Create sample appointments
@@ -123,7 +174,7 @@ Appointment.find_or_create_by!(
 ) do |apt|
   apt.duration = 60
   apt.service = 'Консультация'
-  apt.status = 'confirmed'
+  apt.status = nil # Запланирована
 end
 
 Appointment.find_or_create_by!(
@@ -134,7 +185,7 @@ Appointment.find_or_create_by!(
 ) do |apt|
   apt.duration = 60
   apt.service = 'Первичная встреча'
-  apt.status = 'pending'
+  apt.status = 'completed' # Состоялась
 end
 
 puts "Seed data created successfully!"
