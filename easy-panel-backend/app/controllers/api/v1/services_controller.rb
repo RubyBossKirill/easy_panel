@@ -1,6 +1,6 @@
 module Api
   module V1
-    class ServicesController < ApplicationController
+    class ServicesController < BaseController
       before_action :authenticate_user!
       before_action :set_service, only: [:show, :update, :destroy]
       before_action :check_permissions, only: [:create, :update, :destroy]
@@ -19,19 +19,15 @@ module Api
         # Сортировка
         @services = @services.order(created_at: :desc)
 
-        render json: @services.as_json(
-          include: {
-            employee: { only: [:id, :name, :email] }
-          }
+        render_success(
+          ServiceSerializer.serialize_collection(@services, include: %i[employee])
         )
       end
 
       # GET /api/v1/services/:id
       def show
-        render json: @service.as_json(
-          include: {
-            employee: { only: [:id, :name, :email] }
-          }
+        render_success(
+          ServiceSerializer.serialize(@service, include: %i[employee])
         )
       end
 
@@ -43,26 +39,23 @@ module Api
         @service.employee_id ||= current_user.id
 
         if @service.save
-          render json: @service.as_json(
-            include: {
-              employee: { only: [:id, :name, :email] }
-            }
-          ), status: :created
+          render_success(
+            ServiceSerializer.serialize(@service, include: %i[employee]),
+            status: :created
+          )
         else
-          render json: { errors: @service.errors.full_messages }, status: :unprocessable_entity
+          render_validation_errors(@service.errors)
         end
       end
 
       # PATCH/PUT /api/v1/services/:id
       def update
         if @service.update(service_params)
-          render json: @service.as_json(
-            include: {
-              employee: { only: [:id, :name, :email] }
-            }
+          render_success(
+            ServiceSerializer.serialize(@service, include: %i[employee])
           )
         else
-          render json: { errors: @service.errors.full_messages }, status: :unprocessable_entity
+          render_validation_errors(@service.errors)
         end
       end
 
@@ -78,11 +71,11 @@ module Api
         @service = Service.includes(:employee).find(params[:id])
 
         # Employee может управлять только своими услугами
-        unless current_user.can_view_all? || @service.employee_id == current_user.id
-          render json: { error: 'Forbidden' }, status: :forbidden
-        end
+        return if current_user.can_view_all? || @service.employee_id == current_user.id
+
+        render_forbidden
       rescue ActiveRecord::RecordNotFound
-        render json: { error: 'Service not found' }, status: :not_found
+        render_not_found(t_error('services.not_found'))
       end
 
       def service_params
@@ -97,9 +90,9 @@ module Api
       end
 
       def check_permissions
-        unless current_user.has_permission?('manage_schedule')
-          render json: { error: 'You do not have permission to perform this action' }, status: :forbidden
-        end
+        return if current_user.has_permission?('manage_schedule')
+
+        render_forbidden(t_error('permissions.manage_schedule'))
       end
     end
   end

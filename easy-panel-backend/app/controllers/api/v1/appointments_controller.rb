@@ -1,18 +1,16 @@
 module Api
   module V1
-    class AppointmentsController < ApplicationController
+    class AppointmentsController < BaseController
       before_action :authenticate_user!
       before_action :set_appointment, only: [:show, :update, :destroy, :update_status]
       before_action :check_permissions, only: [:create, :update, :destroy]
 
       # GET /api/v1/appointments
       def index
-        @appointments = Appointment.includes(:client, :employee)
+        @appointments = Appointment.includes(:client, :employee, :service)
 
         # Фильтрация по сотруднику (если не может видеть все - видит только свои)
-        unless current_user.can_view_all?
-          @appointments = @appointments.for_employee(current_user.id)
-        end
+        @appointments = @appointments.for_employee(current_user.id) unless current_user.can_view_all?
 
         # Фильтры
         @appointments = @appointments.by_status(params[:status]) if params[:status].present?
@@ -24,102 +22,85 @@ module Api
         # Сортировка
         @appointments = @appointments.order(date: :asc, time: :asc)
 
-        render json: @appointments.as_json(
-          include: {
-            client: { only: [:id, :name, :phone, :email] },
-            employee: { only: [:id, :name, :email] },
-            service: { only: [:id, :name, :price, :duration] }
-          }
+        render_success(
+          AppointmentSerializer.serialize_collection(
+            @appointments,
+            include: %i[client employee service]
+          )
         )
       end
 
       # GET /api/v1/appointments/:id
       def show
-        render json: @appointment.as_json(
-          include: {
-            client: { only: [:id, :name, :phone, :email, :telegram] },
-            employee: { only: [:id, :name, :email] },
-            time_slot: { only: [:id, :start_time, :end_time, :date] }
-          }
+        render_success(
+          AppointmentSerializer.serialize(@appointment, include: %i[client employee time_slot])
         )
       end
 
       # POST /api/v1/appointments
       def create
-        @appointment = Appointment.new(appointment_params)
+        result = Appointments::CreateAppointmentInteractor.call(current_user, appointment_params.to_h)
 
-        # Если employee_id не указан, используем current_user
-        @appointment.employee_id ||= current_user.id
-
-        ActiveRecord::Base.transaction do
-          if @appointment.save
-            # Если указан time_slot_id, обновляем слот
-            if @appointment.time_slot_id.present?
-              time_slot = TimeSlot.find(@appointment.time_slot_id)
-              time_slot.update!(available: false, appointment_id: @appointment.id)
-            end
-
-            render json: @appointment.as_json(
-              include: {
-                client: { only: [:id, :name, :phone, :email] },
-                employee: { only: [:id, :name, :email] }
-              }
-            ), status: :created
-          else
-            render json: { errors: @appointment.errors.full_messages }, status: :unprocessable_entity
-          end
+        if result.success?
+          render_success(
+            AppointmentSerializer.serialize(result.data, include: %i[client employee]),
+            message: result.message,
+            status: :created
+          )
+        else
+          render_error(result.message, code: result.code)
         end
-      rescue ActiveRecord::RecordInvalid => e
-        render json: { errors: [e.message] }, status: :unprocessable_entity
       end
 
       # PATCH/PUT /api/v1/appointments/:id
       def update
         if @appointment.update(appointment_params)
-          render json: @appointment.as_json(
-            include: {
-              client: { only: [:id, :name, :phone, :email] },
-              employee: { only: [:id, :name, :email] }
-            }
+          render_success(
+            AppointmentSerializer.serialize(@appointment, include: %i[client employee])
           )
         else
-          render json: { errors: @appointment.errors.full_messages }, status: :unprocessable_entity
+          render_validation_errors(@appointment.errors)
         end
       end
 
       # DELETE /api/v1/appointments/:id
       def destroy
         ActiveRecord::Base.transaction do
-          # Если есть связанный time_slot, освобождаем его
+          # Освобождаем связанный time_slot если есть
           if @appointment.time_slot_id.present?
-            time_slot = TimeSlot.find(@appointment.time_slot_id)
-            time_slot.update!(available: true, appointment_id: nil)
+            time_slot = TimeSlot.find_by(id: @appointment.time_slot_id)
+            time_slot&.update!(available: true, appointment_id: nil)
           end
 
-          @appointment.destroy
+          # Также освобождаем все time_slots которые ссылаются на эту встречу
+          TimeSlot.where(appointment_id: @appointment.id).update_all(available: true, appointment_id: nil)
+
+          @appointment.destroy!
         end
         head :no_content
-      rescue ActiveRecord::RecordInvalid => e
-        render json: { errors: [e.message] }, status: :unprocessable_entity
+      rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotDestroyed => e
+        render_error(e.message, code: :validation_error)
+      rescue ActiveRecord::InvalidForeignKey
+        render_error('Невозможно удалить запись: существуют связанные данные', code: :unprocessable_entity)
       end
 
       # PATCH /api/v1/appointments/:id/update_status
       def update_status
         new_status = params[:status]
 
-        unless %w[pending confirmed cancelled completed].include?(new_status)
-          return render json: { error: 'Invalid status' }, status: :unprocessable_entity
+        # Разрешённые статусы: nil (для сброса), 'completed', 'cancelled'
+        allowed_statuses = [nil, 'completed', 'cancelled']
+        unless allowed_statuses.include?(new_status)
+          return render_error(I18n.t('errors.appointments.invalid_status'), code: :invalid_status)
         end
 
         if @appointment.update(status: new_status)
-          render json: @appointment.as_json(
-            include: {
-              client: { only: [:id, :name, :phone, :email] },
-              employee: { only: [:id, :name, :email] }
-            }
+          render_success(
+            AppointmentSerializer.serialize(@appointment, include: %i[client employee]),
+            I18n.t('success.appointments.updated')
           )
         else
-          render json: { errors: @appointment.errors.full_messages }, status: :unprocessable_entity
+          render_validation_errors(@appointment.errors)
         end
       end
 
@@ -129,11 +110,11 @@ module Api
         @appointment = Appointment.includes(:client, :employee).find(params[:id])
 
         # Employee может видеть только свои записи
-        unless current_user.can_view_all? || @appointment.employee_id == current_user.id
-          render json: { error: 'Forbidden' }, status: :forbidden
-        end
+        return if current_user.can_view_all? || @appointment.employee_id == current_user.id
+
+        render_forbidden
       rescue ActiveRecord::RecordNotFound
-        render json: { error: 'Appointment not found' }, status: :not_found
+        render_not_found(t_error('appointments.not_found'))
       end
 
       def appointment_params
@@ -151,9 +132,9 @@ module Api
       end
 
       def check_permissions
-        unless current_user.has_permission?('manage_schedule')
-          render json: { error: 'You do not have permission to perform this action' }, status: :forbidden
-        end
+        return if current_user.has_permission?('manage_schedule')
+
+        render_forbidden(t_error('permissions.manage_schedule'))
       end
     end
   end

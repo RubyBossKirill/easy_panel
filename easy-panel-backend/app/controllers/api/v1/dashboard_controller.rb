@@ -1,13 +1,10 @@
 module Api
   module V1
-    class DashboardController < ApplicationController
+    class DashboardController < BaseController
       before_action :authenticate_user!
 
       def stats
-        unless current_user.has_permission?('view_dashboard')
-          render json: { error: 'Forbidden' }, status: :forbidden
-          return
-        end
+        return render_forbidden unless current_user.has_permission?('view_dashboard')
 
         # Filter appointments based on user role
         base_appointments = if current_user.can_view_all?
@@ -33,7 +30,7 @@ module Api
           cancelled_appointments: base_appointments.where(status: 'cancelled').count
         }
 
-        render json: stats
+        render_success(stats)
       end
     end
   end

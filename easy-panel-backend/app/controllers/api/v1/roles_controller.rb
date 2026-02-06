@@ -1,99 +1,97 @@
-class Api::V1::RolesController < ApplicationController
-  before_action :authenticate_user!
-  before_action :check_manage_roles_permission, only: [:create, :update, :destroy]
-  before_action :prevent_owner_modification, only: [:update, :destroy]
+module Api
+  module V1
+    class RolesController < BaseController
+      before_action :authenticate_user!
+      before_action :check_manage_roles_permission, only: [:create, :update, :destroy]
+      before_action :prevent_owner_modification, only: [:update, :destroy]
 
-  # GET /api/v1/roles
-  def index
-    roles = Role.all.order(:id)
+      # GET /api/v1/roles
+      def index
+        roles = Role.all.order(:id)
 
-    render json: {
-      status: true,
-      data: {
-        roles: roles.as_json(methods: [:is_owner])
-      }
-    }
-  end
+        render_success(
+          { roles: RoleSerializer.serialize_collection(roles) }
+        )
+      end
 
-  # GET /api/v1/roles/:id
-  def show
-    role = Role.find(params[:id])
+      # GET /api/v1/roles/:id
+      def show
+        role = Role.find(params[:id])
 
-    render json: {
-      status: true,
-      data: {
-        role: role.as_json(methods: [:is_owner])
-      }
-    }
-  rescue ActiveRecord::RecordNotFound
-    render json: { status: false, error: 'Роль не найдена' }, status: :not_found
-  end
+        render_success(
+          { role: RoleSerializer.serialize(role) }
+        )
+      rescue ActiveRecord::RecordNotFound
+        render_not_found(t_error('roles.not_found'))
+      end
 
-  # POST /api/v1/roles
-  def create
-    role = Role.new(role_params)
+      # POST /api/v1/roles
+      def create
+        role = Role.new(role_params)
 
-    if role.save
-      render json: {
-        status: true,
-        data: {
-          role: role.as_json(methods: [:is_owner])
-        }
-      }, status: :created
-    else
-      render json: { status: false, error: role.errors.full_messages.join(', ') }, status: :unprocessable_entity
-    end
-  end
+        if role.save
+          render_success(
+            { role: RoleSerializer.serialize(role) },
+            status: :created
+          )
+        else
+          render_validation_errors(role.errors)
+        end
+      end
 
-  # PATCH/PUT /api/v1/roles/:id
-  def update
-    role = Role.find(params[:id])
+      # PATCH/PUT /api/v1/roles/:id
+      def update
+        role = Role.find(params[:id])
 
-    if role.update(role_params)
-      render json: {
-        status: true,
-        data: {
-          role: role.as_json(methods: [:is_owner])
-        }
-      }
-    else
-      render json: { status: false, error: role.errors.full_messages.join(', ') }, status: :unprocessable_entity
-    end
-  rescue ActiveRecord::RecordNotFound
-    render json: { status: false, error: 'Роль не найдена' }, status: :not_found
-  end
+        if role.update(role_params)
+          render_success(
+            { role: RoleSerializer.serialize(role) }
+          )
+        else
+          render_validation_errors(role.errors)
+        end
+      rescue ActiveRecord::RecordNotFound
+        render_not_found(t_error('roles.not_found'))
+      end
 
-  # DELETE /api/v1/roles/:id
-  def destroy
-    role = Role.find(params[:id])
+      # DELETE /api/v1/roles/:id
+      def destroy
+        role = Role.find(params[:id])
 
-    if role.users.any?
-      render json: { status: false, error: 'Невозможно удалить роль, к которой привязаны пользователи' }, status: :unprocessable_entity
-    elsif role.destroy
-      render json: { status: true, message: 'Роль успешно удалена' }
-    else
-      render json: { status: false, error: role.errors.full_messages.join(', ') }, status: :unprocessable_entity
-    end
-  rescue ActiveRecord::RecordNotFound
-    render json: { status: false, error: 'Роль не найдена' }, status: :not_found
-  end
+        if role.users.any?
+          return render_error(
+            t_error('roles.has_users'),
+            code: :has_users
+          )
+        end
 
-  private
+        if role.destroy
+          render_success(message: t_message('role_deleted'))
+        else
+          render_validation_errors(role.errors)
+        end
+      rescue ActiveRecord::RecordNotFound
+        render_not_found(t_error('roles.not_found'))
+      end
 
-  def role_params
-    params.require(:role).permit(:name, permissions: [])
-  end
+      private
 
-  def check_manage_roles_permission
-    unless current_user.has_permission?('manage_roles')
-      render json: { status: false, error: 'Недостаточно прав для управления ролями' }, status: :forbidden
-    end
-  end
+      def role_params
+        params.require(:role).permit(:name, permissions: [])
+      end
 
-  def prevent_owner_modification
-    role = Role.find_by(id: params[:id])
-    if role&.is_owner
-      render json: { status: false, error: 'Невозможно изменить или удалить роль Владельца' }, status: :forbidden
+      def check_manage_roles_permission
+        return if current_user.has_permission?('manage_roles')
+
+        render_forbidden(t_error('roles.insufficient_permissions_manage'))
+      end
+
+      def prevent_owner_modification
+        role = Role.find_by(id: params[:id])
+        return unless role&.is_owner
+
+        render_forbidden(t_error('roles.cannot_modify_owner'))
+      end
     end
   end
 end

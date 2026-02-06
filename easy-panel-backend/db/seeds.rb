@@ -118,50 +118,56 @@ end
 
 puts "Creating services..."
 
-# Create sample services
-services_data = [
-  {
-    name: 'Индивидуальная консультация',
-    description: 'Персональная консультация психолога (60 минут)',
-    employee: owner,
-    price: 5000,
-    duration: 60,
-    is_active: true
-  },
-  {
-    name: 'Парная консультация',
-    description: 'Консультация для пар (90 минут)',
-    employee: owner,
-    price: 7000,
-    duration: 90,
-    is_active: true
-  },
-  {
-    name: 'Групповая терапия',
-    description: 'Сессия групповой терапии (120 минут)',
-    employee: admin,
-    price: 3000,
-    duration: 120,
-    is_active: true
-  },
-  {
-    name: 'Первичная консультация',
-    description: 'Знакомство и первичная диагностика (45 минут)',
-    employee: employee,
-    price: 3500,
-    duration: 45,
-    is_active: true
-  }
-]
+# Create sample services (с использованием find_or_create_by для предотвращения дубликатов)
+created_services = []
 
-created_services = services_data.map do |service_data|
-  Service.find_or_create_by!(
-    name: service_data[:name],
-    employee: service_data[:employee]
-  ) do |service|
-    service.assign_attributes(service_data.except(:employee))
-  end
+# Индивидуальная консультация
+service = Service.find_or_create_by!(
+  name: 'Индивидуальная консультация',
+  employee: owner
+) do |s|
+  s.description = 'Персональная консультация психолога (60 минут)'
+  s.price = 5000
+  s.duration = 60
+  s.is_active = true
 end
+created_services << service
+
+# Парная консультация
+service = Service.find_or_create_by!(
+  name: 'Парная консультация',
+  employee: owner
+) do |s|
+  s.description = 'Консультация для пар (90 минут)'
+  s.price = 7000
+  s.duration = 90
+  s.is_active = true
+end
+created_services << service
+
+# Групповая терапия
+service = Service.find_or_create_by!(
+  name: 'Групповая терапия',
+  employee: admin
+) do |s|
+  s.description = 'Сессия групповой терапии (120 минут)'
+  s.price = 3000
+  s.duration = 120
+  s.is_active = true
+end
+created_services << service
+
+# Первичная консультация
+service = Service.find_or_create_by!(
+  name: 'Первичная консультация',
+  employee: employee
+) do |s|
+  s.description = 'Знакомство и первичная диагностика (45 минут)'
+  s.price = 3500
+  s.duration = 45
+  s.is_active = true
+end
+created_services << service
 
 puts "Creating appointments..."
 

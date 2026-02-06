@@ -1,0 +1,244 @@
+ru:
+  activerecord:
+    errors:
+      messages:
+        record_invalid: 'Проверка не удалась: %{errors}'
+        restrict_dependent_destroy:
+          has_one: 'Невозможно удалить запись, так как существует зависимый %{record}'
+          has_many: 'Невозможно удалить запись, так как существуют зависимые %{record}'
+        required: 'не может быть пустым'
+        blank: 'не может быть пустым'
+        taken: 'уже занято'
+        invalid: 'имеет неверное значение'
+        too_short: 'слишком короткий (минимум %{count} символов)'
+        too_long: 'слишком длинный (максимум %{count} символов)'
+        confirmation: 'не совпадает'
+        inclusion: 'имеет непредусмотренное значение'
+        exclusion: 'зарезервировано'
+        not_a_number: 'не является числом'
+        greater_than: 'должно быть больше %{count}'
+        greater_than_or_equal_to: 'должно быть больше или равно %{count}'
+        less_than: 'должно быть меньше %{count}'
+        less_than_or_equal_to: 'должно быть меньше или равно %{count}'
+        equal_to: 'должно быть равно %{count}'
+    models:
+      user: Пользователь
+      client: Клиент
+      appointment: Запись
+      time_slot: Временной слот
+      payment: Платёж
+      role: Роль
+      service: Услуга
+    attributes:
+      user:
+        name: Имя
+        email: Email
+        password: Пароль
+        password_confirmation: Подтверждение пароля
+        phone: Телефон
+        telegram: Telegram
+        role: Роль
+      client:
+        name: Имя
+        email: Email
+        phone: Телефон
+        telegram: Telegram
+        notes: Заметки
+      appointment:
+        date: Дата
+        time: Время
+        duration: Длительность
+        status: Статус
+        service: Услуга
+        notes: Заметки
+        client: Клиент
+        employee: Сотрудник
+      time_slot:
+        date: Дата
+        time: Время
+        duration: Длительность
+        available: Доступен
+        employee: Сотрудник
+      payment:
+        amount: Сумма
+        status: Статус
+        payment_method: Способ оплаты
+        client: Клиент
+        service: Услуга
+      role:
+        name: Название
+        permissions: Права доступа
+      service:
+        name: Название
+        description: Описание
+        price: Цена
+        duration: Длительность
+        is_active: Активна
+
+  errors:
+    # Общие ошибки
+    not_found: 'Запись не найдена'
+    forbidden: 'Недостаточно прав для выполнения этого действия'
+    unauthorized: 'Вы не авторизованы'
+    validation_error: 'Ошибка валидации'
+    internal_server_error: 'Внутренняя ошибка сервера'
+
+    # Ошибки аутентификации
+    auth:
+      invalid_credentials: 'Неверный email или пароль'
+      invalid_token: 'Невалидный токен'
+      token_expired: 'Токен истек'
+      refresh_token_required: 'Refresh token не предоставлен'
+      invalid_refresh_token: 'Невалидный refresh token'
+      refresh_token_expired: 'Refresh token истек или отозван'
+      not_authenticated: 'Не авторизован'
+      insufficient_permissions: 'Недостаточно прав для выполнения этого действия'
+
+    # Ошибки пользователей
+    users:
+      not_found: 'Пользователь не найден'
+      insufficient_permissions_view: 'Недостаточно прав для просмотра этого пользователя'
+      insufficient_permissions_edit: 'Недостаточно прав для редактирования этого пользователя'
+      insufficient_permissions_delete: 'Недостаточно прав для удаления этого пользователя'
+      insufficient_permissions_manage: 'Недостаточно прав для управления пользователями'
+      invalid_password: 'Неверный текущий пароль'
+      cannot_delete_self: 'Нельзя удалить самого себя'
+      last_owner_error: 'Нельзя удалить или изменить роль последнего владельца'
+      only_owner_can_create_owner: 'Только владелец может создавать других владельцев'
+      only_owner_can_assign_owner: 'Только владелец может назначать роль владельца'
+      has_dependencies: 'Невозможно удалить пользователя с существующими клиентами или записями'
+
+    # Ошибки клиентов
+    clients:
+      not_found: 'Клиент не найден'
+      insufficient_permissions_view: 'Недостаточно прав для просмотра этого клиента'
+      insufficient_permissions_edit: 'Недостаточно прав для редактирования этого клиента'
+      insufficient_permissions_delete: 'Недостаточно прав для удаления этого клиента'
+      insufficient_permissions_manage: 'Недостаточно прав для управления клиентами'
+      has_appointments: 'Невозможно удалить клиента с существующими записями'
+
+    # Ошибки записей
+    appointment:
+      inactive_service: 'услуга неактивна и не может быть использована'
+    appointments:
+      not_found: 'Запись не найдена'
+      invalid_status: 'Невалидный статус'
+      time_slot_not_available: 'Временной слот недоступен'
+      time_slot_not_found: 'Временной слот не найден'
+
+    # Ошибки временных слотов
+    time_slots:
+      not_found: 'Временной слот не найден'
+      invalid_time_range: 'Некорректный временной диапазон'
+      start_time_after_end_time: 'Время начала должно быть раньше времени окончания'
+      invalid_duration: 'Некорректная длительность слота'
+
+    # Ошибки платежей
+    payments:
+      not_found: 'Платёж не найден'
+      prodamus_error: 'Ошибка генерации ссылки на оплату'
+
+    # Ошибки ролей
+    roles:
+      not_found: 'Роль не найдена'
+      cannot_modify_owner: 'Невозможно изменить или удалить роль Владельца'
+      has_users: 'Невозможно удалить роль, к которой привязаны пользователи'
+      insufficient_permissions_manage: 'Недостаточно прав для управления ролями'
+
+    # Ошибки услуг
+    services:
+      not_found: 'Услуга не найдена'
+
+    # Ошибки прав доступа
+    permissions:
+      manage_schedule: 'У вас нет прав для управления расписанием'
+      manage_payments: 'У вас нет прав для управления платежами'
+      view_dashboard: 'У вас нет прав для просмотра дашборда'
+
+  # Успешные сообщения
+  success:
+    # Пользователи
+    users:
+      created: 'Пользователь успешно создан'
+      updated: 'Пользователь успешно обновлён'
+      deleted: 'Пользователь успешно удалён'
+    # Клиенты
+    clients:
+      created: 'Клиент успешно создан'
+      updated: 'Клиент успешно обновлён'
+      deleted: 'Клиент успешно удалён'
+    # Записи
+    appointments:
+      created: 'Запись успешно создана'
+      updated: 'Запись успешно обновлена'
+      deleted: 'Запись успешно удалена'
+    # Временные слоты
+    time_slots:
+      created: 'Создано слотов: %{count}'
+      updated: 'Временной слот обновлён'
+      deleted: 'Временной слот удалён'
+    # Платежи
+    payments:
+      created: 'Платёж успешно создан'
+      updated: 'Платёж успешно обновлён'
+      deleted: 'Платёж успешно удалён'
+    # Роли
+    roles:
+      created: 'Роль успешно создана'
+      updated: 'Роль успешно обновлена'
+      deleted: 'Роль успешно удалена'
+    # Услуги
+    services:
+      created: 'Услуга успешно создана'
+      updated: 'Услуга успешно обновлена'
+      deleted: 'Услуга успешно удалена'
+
+  messages:
+    # Устаревшие сообщения (для обратной совместимости)
+    success:
+      created: 'Успешно создано'
+      updated: 'Успешно обновлено'
+      deleted: 'Успешно удалено'
+      logged_out: 'Выход выполнен успешно'
+    user_created: 'Пользователь успешно создан'
+    client_created: 'Клиент успешно создан'
+    appointment_created: 'Запись успешно создана'
+    payment_created: 'Платёж успешно создан'
+    role_created: 'Роль успешно создана'
+    service_created: 'Услуга успешно создана'
+    time_slots_created: 'Создано %{count} временных слотов'
+    user_updated: 'Пользователь успешно обновлён'
+    client_updated: 'Клиент успешно обновлён'
+    appointment_updated: 'Запись успешно обновлена'
+    payment_updated: 'Платёж успешно обновлён'
+    role_updated: 'Роль успешно обновлена'
+    service_updated: 'Услуга успешно обновлена'
+    user_deleted: 'Пользователь успешно удалён'
+    client_deleted: 'Клиент успешно удалён'
+    appointment_deleted: 'Запись успешно удалена'
+    payment_deleted: 'Платёж успешно удалён'
+    role_deleted: 'Роль успешно удалена'
+    service_deleted: 'Услуга успешно удалена'
+
+  # Переводы прав доступа
+  permissions:
+    view_dashboard: 'Просмотр дашборда'
+    view_analytics: 'Просмотр аналитики'
+    manage_schedule: 'Управление расписанием'
+    view_clients: 'Просмотр клиентов'
+    manage_clients: 'Управление клиентами'
+    delete_clients: 'Удаление клиентов'
+    view_payments: 'Просмотр платежей'
+    manage_payments: 'Управление платежами'
+    view_all_clients: 'Просмотр всех клиентов'
+    manage_all_clients: 'Управление всеми клиентами'
+    view_all_payments: 'Просмотр всех платежей'
+    manage_all_payments: 'Управление всеми платежами'
+    manage_users: 'Управление пользователями'
+    delete_users: 'Удаление пользователей'
+    manage_roles: 'Управление ролями'
+    manage_account_settings: 'Управление настройками аккаунта'
+    manage_payment_settings: 'Управление настройками платежей'
+    manage_certificates: 'Управление сертификатами'
+    manage_subscriptions: 'Управление подписками'
+    manage_discounts: 'Управление скидками'
