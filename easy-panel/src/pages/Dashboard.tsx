@@ -231,7 +231,9 @@ const Dashboard: React.FC = () => {
                       </div>
                       <div>
                         <div className="font-medium">{clientName}</div>
-                        <div className="text-sm text-gray-500">{formatDateTime(a.date, a.time)} — {a.service || 'Консультация'}</div>
+                        <div className="text-sm text-gray-500">
+                          {formatDateTime(a.date, a.time)} — {typeof a.service === 'string' ? a.service : a.service?.name || 'Консультация'}
+                        </div>
                       </div>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(a.status)}`}>{getStatusText(a.status)}</span>

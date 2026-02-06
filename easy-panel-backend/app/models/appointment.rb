@@ -2,6 +2,8 @@ class Appointment < ApplicationRecord
   belongs_to :client
   belongs_to :employee, class_name: 'User'
   belongs_to :time_slot, optional: true
+  belongs_to :service, optional: true
+  has_one :payment, dependent: :destroy
 
   validates :date, :time, :duration, presence: true
   validates :status, inclusion: { in: %w[completed cancelled], allow_nil: true }

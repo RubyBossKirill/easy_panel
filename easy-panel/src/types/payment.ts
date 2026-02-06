@@ -1,11 +1,19 @@
+import { Service } from './service';
+
 export interface Payment {
   id: number;
   client_id: number;
   appointment_id: number;
+  service_id?: number;
   amount: number;
-  service?: string;
-  employee_id?: number;
-  paid_at: string;
+  discount_type?: 'percent' | 'amount';
+  discount_value?: number;
+  discount_amount?: number;
+  status: 'pending' | 'paid' | 'cancelled' | 'failed';
+  payment_method: 'online' | 'cash' | 'card' | 'transfer';
+  payment_link?: string;
+  prodamus_order_id?: string;
+  paid_at?: string;
   created_at: string;
   updated_at: string;
   client?: {
@@ -13,15 +21,14 @@ export interface Payment {
     name: string;
     phone?: string;
     email?: string;
-    telegram?: string;
   };
+  service?: Service;
   appointment?: {
     id: number;
     date: string;
     time: string;
     duration: number;
-    status: string;
-    service?: string;
+    status?: string | null;
     notes?: string;
     employee?: {
       id: number;
@@ -34,16 +41,16 @@ export interface Payment {
 export interface CreatePaymentData {
   client_id: number;
   appointment_id: number;
-  amount: number;
-  service?: string;
-  employee_id?: number;
-  paid_at?: string;
+  service_id: number;
+  payment_method?: 'online' | 'cash' | 'card' | 'transfer';
+  discount_type?: 'percent' | 'amount';
+  discount_value?: number;
 }
 
 export interface PaymentFilters {
   client_id?: number;
   appointment_id?: number;
-  employee_id?: number;
+  status?: 'pending' | 'paid' | 'cancelled' | 'failed';
   from_date?: string;
   to_date?: string;
 }

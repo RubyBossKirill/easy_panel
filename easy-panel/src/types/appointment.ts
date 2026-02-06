@@ -1,3 +1,5 @@
+import { Service } from './service';
+
 export interface Appointment {
   id: number;
   client_id: number;
@@ -5,7 +7,8 @@ export interface Appointment {
   date: string;
   time: string;
   duration: number;
-  service?: string;
+  service?: string | Service;
+  service_id?: number;
   status?: 'completed' | 'cancelled' | null;
   notes?: string;
   created_at: string;
@@ -37,6 +40,7 @@ export interface CreateAppointmentData {
   time: string;
   duration: number;
   service?: string;
+  service_id?: number;
   status?: string;
   notes?: string;
   time_slot_id?: number;

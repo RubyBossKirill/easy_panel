@@ -165,7 +165,7 @@ end
 
 puts "Creating appointments..."
 
-# Create sample appointments
+# Create sample appointments (используем созданные услуги)
 Appointment.find_or_create_by!(
   client: created_clients[0],
   employee: employee,
@@ -173,7 +173,7 @@ Appointment.find_or_create_by!(
   time: '14:00'
 ) do |apt|
   apt.duration = 60
-  apt.service = 'Консультация'
+  apt.service_id = created_services[0]&.id # Первая услуга из списка
   apt.status = nil # Запланирована
 end
 
@@ -184,7 +184,7 @@ Appointment.find_or_create_by!(
   time: '10:00'
 ) do |apt|
   apt.duration = 60
-  apt.service = 'Первичная встреча'
+  apt.service_id = created_services[3]&.id # "Первичная консультация" (последняя в списке)
   apt.status = 'completed' # Состоялась
 end
 

@@ -32,6 +32,9 @@ Rails.application.routes.draw do
       end
       resources :payments, only: %i[index show create]
       resources :services, only: %i[index show create update destroy]
+
+      # Webhooks (без аутентификации)
+      post 'webhooks/prodamus', to: 'webhooks#prodamus'
     end
   end
 end

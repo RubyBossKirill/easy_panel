@@ -7,28 +7,30 @@ module Api
 
       # GET /api/v1/payments
       def index
-        @payments = Payment.includes(:client, :appointment)
+        @payments = Payment.includes(:client, :appointment, :service)
 
         # Фильтры
         @payments = @payments.where(client_id: params[:client_id]) if params[:client_id].present?
         @payments = @payments.where(appointment_id: params[:appointment_id]) if params[:appointment_id].present?
-        @payments = @payments.where(employee_id: params[:employee_id]) if params[:employee_id].present?
-        @payments = @payments.where('paid_at >= ?', params[:from_date]) if params[:from_date].present?
-        @payments = @payments.where('paid_at <= ?', params[:to_date]) if params[:to_date].present?
+        @payments = @payments.where(status: params[:status]) if params[:status].present?
+        @payments = @payments.where('created_at >= ?', params[:from_date]) if params[:from_date].present?
+        @payments = @payments.where('created_at <= ?', params[:to_date]) if params[:to_date].present?
 
         # Employee видит только платежи по своим записям
-        unless current_user.has_role?(:owner) || current_user.has_role?(:admin)
-          @payments = @payments.where(employee_id: current_user.id)
+        unless current_user.can_view_all?
+          appointment_ids = Appointment.where(employee_id: current_user.id).pluck(:id)
+          @payments = @payments.where(appointment_id: appointment_ids)
         end
 
-        # Сортировка по дате платежа (последние первые)
-        @payments = @payments.order(paid_at: :desc)
+        # Сортировка по дате создания (последние первые)
+        @payments = @payments.order(created_at: :desc)
 
         render json: @payments.as_json(
           include: {
             client: { only: [:id, :name, :phone, :email] },
+            service: { only: [:id, :name, :price, :duration] },
             appointment: {
-              only: [:id, :date, :time, :duration, :status, :service],
+              only: [:id, :date, :time, :duration, :status],
               include: {
                 employee: { only: [:id, :name, :email] }
               }
@@ -41,9 +43,10 @@ module Api
       def show
         render json: @payment.as_json(
           include: {
-            client: { only: [:id, :name, :phone, :email, :telegram] },
+            client: { only: [:id, :name, :phone, :email] },
+            service: { only: [:id, :name, :price, :duration, :description] },
             appointment: {
-              only: [:id, :date, :time, :duration, :status, :service, :notes],
+              only: [:id, :date, :time, :duration, :status, :notes],
               include: {
                 employee: { only: [:id, :name, :email] }
               }
@@ -52,25 +55,67 @@ module Api
         )
       end
 
-      # POST /api/v1/payments
+      # POST /api/v1/payments - создание платежа с генерацией ссылки Prodamus
       def create
-        @payment = Payment.new(payment_params)
+        Rails.logger.info "========================================="
+        Rails.logger.info "💳 PAYMENTS CONTROLLER: Create action"
+        Rails.logger.info "========================================="
+        Rails.logger.info "Params: #{payment_params.inspect}"
 
-        # Устанавливаем employee_id из appointment, если не указан
-        if @payment.appointment_id.present?
-          appointment = Appointment.find_by(id: @payment.appointment_id)
-          @payment.employee_id ||= appointment&.employee_id
-        end
+        # Загружаем связанные объекты
+        appointment = Appointment.find(payment_params[:appointment_id])
+        service = Service.find(payment_params[:service_id])
+        client = Client.find(payment_params[:client_id])
 
-        # Устанавливаем paid_at на текущее время, если не указано
-        @payment.paid_at ||= Time.current
+        Rails.logger.info "Найдены: Appointment ##{appointment.id}, Service ##{service.id}, Client ##{client.id}"
+
+        # Создаем Payment
+        @payment = Payment.new(
+          client: client,
+          appointment: appointment,
+          service: service,
+          amount: service.price,
+          payment_method: payment_params[:payment_method] || 'online',
+          status: 'pending',
+          discount_type: payment_params[:discount_type],
+          discount_value: payment_params[:discount_value]
+        )
 
         if @payment.save
+          Rails.logger.info "✅ Payment ##{@payment.id} создан успешно"
+
+          # Если метод оплаты online - генерируем ссылку через Prodamus
+          if @payment.payment_method == 'online'
+            Rails.logger.info "🔗 Генерируем ссылку Prodamus для Payment ##{@payment.id}"
+
+            prodamus = ProdamusService.new
+            result = prodamus.generate_payment_link(
+              appointment: appointment,
+              service: service,
+              client: client,
+              payment: @payment
+            )
+
+            if result[:success]
+              # Сохраняем ссылку и prodamus_order_id
+              @payment.update!(
+                payment_link: result[:link],
+                prodamus_order_id: "payment_#{@payment.id}_#{Time.now.to_i}"
+              )
+
+              Rails.logger.info "✅ Ссылка сохранена в Payment ##{@payment.id}"
+            else
+              Rails.logger.error "❌ Ошибка генерации ссылки: #{result[:error]}"
+              # Не падаем, просто возвращаем payment без ссылки
+            end
+          end
+
           render json: @payment.as_json(
             include: {
               client: { only: [:id, :name, :phone, :email] },
+              service: { only: [:id, :name, :price, :duration] },
               appointment: {
-                only: [:id, :date, :time, :status, :service],
+                only: [:id, :date, :time, :status],
                 include: {
                   employee: { only: [:id, :name, :email] }
                 }
@@ -78,18 +123,24 @@ module Api
             }
           ), status: :created
         else
+          Rails.logger.error "❌ Ошибка создания Payment: #{@payment.errors.full_messages}"
           render json: { errors: @payment.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue ActiveRecord::RecordNotFound => e
+        Rails.logger.error "❌ Запись не найдена: #{e.message}"
+        render json: { error: "Record not found: #{e.message}" }, status: :not_found
       end
 
       private
 
       def set_payment
-        @payment = Payment.includes(:client, :appointment).find(params[:id])
+        @payment = Payment.includes(:client, :appointment, :service).find(params[:id])
 
         # Employee может видеть только платежи по своим записям
-        unless current_user.has_role?(:owner) || current_user.has_role?(:admin) || @payment.employee_id == current_user.id
-          render json: { error: 'Forbidden' }, status: :forbidden
+        unless current_user.can_view_all?
+          unless @payment.appointment&.employee_id == current_user.id
+            render json: { error: 'Forbidden' }, status: :forbidden
+          end
         end
       rescue ActiveRecord::RecordNotFound
         render json: { error: 'Payment not found' }, status: :not_found
@@ -99,10 +150,11 @@ module Api
         params.require(:payment).permit(
           :client_id,
           :appointment_id,
+          :service_id,
           :amount,
-          :service,
-          :employee_id,
-          :paid_at
+          :payment_method,
+          :discount_type,
+          :discount_value
         )
       end
 

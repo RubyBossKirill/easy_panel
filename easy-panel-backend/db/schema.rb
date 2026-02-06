@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_05_140909) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_06_123130) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -26,9 +26,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_140909) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "time_slot_id"
+    t.bigint "service_id"
     t.index ["client_id"], name: "index_appointments_on_client_id"
     t.index ["employee_id", "date"], name: "index_appointments_on_employee_id_and_date"
     t.index ["employee_id"], name: "index_appointments_on_employee_id"
+    t.index ["service_id"], name: "index_appointments_on_service_id"
     t.index ["status"], name: "index_appointments_on_status"
     t.index ["time_slot_id"], name: "index_appointments_on_time_slot_id"
   end
@@ -53,8 +55,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_140909) do
     t.datetime "paid_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "service_id"
+    t.string "prodamus_order_id"
+    t.text "payment_link"
+    t.string "payment_method", default: "online"
+    t.string "status", default: "pending"
+    t.string "discount_type"
+    t.decimal "discount_value", precision: 10, scale: 2
+    t.decimal "discount_amount", precision: 10, scale: 2
     t.index ["appointment_id"], name: "index_payments_on_appointment_id"
     t.index ["client_id"], name: "index_payments_on_client_id"
+    t.index ["prodamus_order_id"], name: "index_payments_on_prodamus_order_id", unique: true
+    t.index ["service_id"], name: "index_payments_on_service_id"
+    t.index ["status"], name: "index_payments_on_status"
   end
 
   create_table "refresh_tokens", force: :cascade do |t|
@@ -121,10 +134,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_05_140909) do
   end
 
   add_foreign_key "appointments", "clients"
+  add_foreign_key "appointments", "services"
   add_foreign_key "appointments", "time_slots"
   add_foreign_key "appointments", "users", column: "employee_id"
   add_foreign_key "payments", "appointments"
   add_foreign_key "payments", "clients"
+  add_foreign_key "payments", "services"
   add_foreign_key "refresh_tokens", "users"
   add_foreign_key "services", "users", column: "employee_id"
   add_foreign_key "time_slots", "appointments"

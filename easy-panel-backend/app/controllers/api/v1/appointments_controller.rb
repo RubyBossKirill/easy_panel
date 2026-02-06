@@ -27,7 +27,8 @@ module Api
         render json: @appointments.as_json(
           include: {
             client: { only: [:id, :name, :phone, :email] },
-            employee: { only: [:id, :name, :email] }
+            employee: { only: [:id, :name, :email] },
+            service: { only: [:id, :name, :price, :duration] }
           }
         )
       end
@@ -142,7 +143,7 @@ module Api
           :date,
           :time,
           :duration,
-          :service,
+          :service_id,
           :status,
           :notes,
           :time_slot_id
