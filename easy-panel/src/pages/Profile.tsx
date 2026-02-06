@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCurrentUser } from '../utils/auth';
+import { getCurrentUser, refreshCurrentUser } from '../utils/auth';
 import { usersService } from '../services/usersService';
 import { User } from '../types';
 import { useToast } from '../hooks/useToast';
@@ -9,6 +9,7 @@ import ToastContainer from '../components/ToastContainer';
 const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -17,18 +18,53 @@ const Profile: React.FC = () => {
   });
   const toast = useToast();
 
-  // Загружаем данные пользователя при монтировании компонента
+  // Загружаем актуальные данные пользователя с сервера при монтировании компонента
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-      setProfile({
-        name: currentUser.name || '',
-        email: currentUser.email || '',
-        phone: currentUser.phone || '',
-        telegram: currentUser.telegram || '',
-      });
-    }
+    const loadUserData = async () => {
+      setLoading(true);
+      try {
+        // Получаем актуальные данные с сервера
+        const freshUser = await refreshCurrentUser();
+        if (freshUser) {
+          setUser(freshUser);
+          setProfile({
+            name: freshUser.name || '',
+            email: freshUser.email || '',
+            phone: freshUser.phone || '',
+            telegram: freshUser.telegram || '',
+          });
+        } else {
+          // Fallback на локальные данные если не удалось загрузить
+          const currentUser = getCurrentUser();
+          if (currentUser) {
+            setUser(currentUser);
+            setProfile({
+              name: currentUser.name || '',
+              email: currentUser.email || '',
+              phone: currentUser.phone || '',
+              telegram: currentUser.telegram || '',
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        // Fallback на локальные данные при ошибке
+        const currentUser = getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+          setProfile({
+            name: currentUser.name || '',
+            email: currentUser.email || '',
+            phone: currentUser.phone || '',
+            telegram: currentUser.telegram || '',
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserData();
   }, []);
 
   const handleSave = async () => {
@@ -81,10 +117,10 @@ const Profile: React.FC = () => {
     }));
   };
 
-  if (!user) {
+  if (loading || !user) {
     return (
       <div className="p-4 md:p-8">
-        <div className="text-center">Загрузка...</div>
+        <div className="text-center">Загрузка профиля...</div>
       </div>
     );
   }

@@ -7,6 +7,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [copiedText, setCopiedText] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,6 +33,16 @@ const Login: React.FC = () => {
   const handleClearSession = () => {
     clearSession();
     window.location.reload();
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedText(label);
+      setTimeout(() => setCopiedText(''), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   return (
@@ -127,11 +138,76 @@ const Login: React.FC = () => {
           </div>
 
           <div className="mt-6 bg-gray-50 p-4 rounded-md">
-            <h3 className="text-sm font-medium text-gray-900 mb-2">Тестовые данные:</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div><strong>Владелец:</strong> owner@company.com / 12345678</div>
-              <div><strong>Админ:</strong> anna@company.com / 12345678</div>
-              <div><strong>Сотрудник:</strong> mike@company.com / 12345678</div>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Тестовые данные:</h3>
+            <div className="space-y-2">
+              {/* Владелец */}
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-gray-700">Владелец:</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('owner@company.com', 'owner-email')}
+                    className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                    title="Копировать email"
+                  >
+                    {copiedText === 'owner-email' ? '✓ Скопировано' : 'owner@company.com'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('12345678', 'owner-password')}
+                    className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                    title="Копировать пароль"
+                  >
+                    {copiedText === 'owner-password' ? '✓ Скопировано' : '12345678'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Админ */}
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-gray-700">Админ:</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('anna@company.com', 'admin-email')}
+                    className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                    title="Копировать email"
+                  >
+                    {copiedText === 'admin-email' ? '✓ Скопировано' : 'anna@company.com'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('12345678', 'admin-password')}
+                    className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                    title="Копировать пароль"
+                  >
+                    {copiedText === 'admin-password' ? '✓ Скопировано' : '12345678'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Сотрудник */}
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-gray-700">Сотрудник:</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('mike@company.com', 'employee-email')}
+                    className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                    title="Копировать email"
+                  >
+                    {copiedText === 'employee-email' ? '✓ Скопировано' : 'mike@company.com'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('12345678', 'employee-password')}
+                    className="px-2 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                    title="Копировать пароль"
+                  >
+                    {copiedText === 'employee-password' ? '✓ Скопировано' : '12345678'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

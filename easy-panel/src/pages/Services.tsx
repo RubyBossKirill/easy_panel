@@ -96,6 +96,8 @@ const Services: React.FC = () => {
       return;
     }
 
+    console.log('Submitting formData:', formData);
+
     try {
       if (editingService) {
         await servicesService.update(editingService.id, formData);
@@ -194,25 +196,9 @@ const Services: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleOpenModal(service)}
-                  className="flex-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                  className="w-full px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
                 >
                   Редактировать
-                </button>
-                <button
-                  onClick={() => handleToggleActive(service)}
-                  className={`flex-1 px-3 py-2 rounded text-sm ${
-                    service.is_active
-                      ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
-                >
-                  {service.is_active ? 'Деактивировать' : 'Активировать'}
-                </button>
-                <button
-                  onClick={() => handleDelete(service.id)}
-                  className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-                >
-                  Удалить
                 </button>
               </div>
             </div>
@@ -296,33 +282,63 @@ const Services: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="mr-2"
-                />
-                <label htmlFor="is_active" className="text-sm">
-                  Услуга активна
-                </label>
+              {/* Toggle Switch для активности */}
+              <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                <div className="flex flex-col">
+                  <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
+                    Статус услуги
+                  </label>
+                  <span className="text-xs text-gray-500 mt-0.5">
+                    {formData.is_active ? 'Услуга доступна для записи' : 'Услуга недоступна для записи'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, is_active: !formData.is_active })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    formData.is_active ? 'bg-green-600' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.is_active ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
 
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={handleSubmit}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                {editingService ? 'Сохранить' : 'Создать'}
-              </button>
-              <button
-                onClick={handleCloseModal}
-                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-              >
-                Отмена
-              </button>
+            <div className="flex flex-col gap-3 mt-6">
+              {/* Основные действия */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSubmit}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  {editingService ? 'Сохранить' : 'Создать'}
+                </button>
+                <button
+                  onClick={handleCloseModal}
+                  className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                >
+                  Отмена
+                </button>
+              </div>
+
+              {/* Дополнительные действия (только при редактировании) */}
+              {editingService && (
+                <div className="pt-3 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      handleCloseModal();
+                      handleDelete(editingService.id);
+                    }}
+                    className="w-full px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 border border-red-300 rounded text-sm font-medium"
+                  >
+                    Удалить услугу
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
