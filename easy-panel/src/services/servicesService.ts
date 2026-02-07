@@ -9,25 +9,28 @@ export const servicesService = {
 
     const query = params.toString();
     const response = await api.get(`/services${query ? `?${query}` : ''}`);
-    return Array.isArray(response) ? response : response.data;
+    return api.extractData<Service[]>(response);
   },
 
   getById: async (id: number): Promise<Service> => {
     const response = await api.get(`/services/${id}`);
-    return (response as any).id ? response : response.data;
+    return api.extractData<Service>(response);
   },
 
   create: async (data: CreateServiceData): Promise<Service> => {
     const response = await api.post('/services', { service: data });
-    return (response as any).id ? response : response.data;
+    return api.extractData<Service>(response);
   },
 
   update: async (id: number, data: UpdateServiceData): Promise<Service> => {
     const response = await api.put(`/services/${id}`, { service: data });
-    return (response as any).id ? response : response.data;
+    return api.extractData<Service>(response);
   },
 
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/services/${id}`);
+    const response = await api.delete(`/services/${id}`);
+    if (!response.status && response.message) {
+      throw new Error(response.message);
+    }
   },
 };

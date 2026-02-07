@@ -10,6 +10,7 @@ import ClientProfile from './pages/ClientProfile';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import AccountSettings from './pages/AccountSettings';
+import Payments from './pages/Payments';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { getCurrentUser } from './utils/auth';
@@ -58,6 +59,7 @@ function App() {
               <Route path="services" element={<Services />} />
               <Route path="clients" element={<Clients />} />
               <Route path="clients/:id" element={<ClientProfile />} />
+              <Route path="payments" element={<Payments />} />
               <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
               <Route path="account-settings" element={<AccountSettings />} />

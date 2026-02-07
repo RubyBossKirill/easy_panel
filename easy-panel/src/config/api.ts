@@ -25,4 +25,5 @@ export const STORAGE_KEYS = {
   REFRESH_TOKEN: 'easy_panel_refresh_token',
   USER: 'easy_panel_user',
   TOKEN_EXPIRY: 'easy_panel_token_expiry',
+  PROJECT_NAME: 'easy_panel_project_name',
 } as const;

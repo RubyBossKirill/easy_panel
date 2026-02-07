@@ -1,3 +1,5 @@
+import { Appointment } from './appointment';
+
 export interface TimeSlot {
   id: number;
   employee_id: number;
@@ -5,7 +7,7 @@ export interface TimeSlot {
   time: string;
   duration: number;
   available: boolean;
-  appointment_id?: number;
+  is_booked: boolean;
   created_at: string;
   updated_at: string;
   employee?: {
@@ -13,17 +15,7 @@ export interface TimeSlot {
     name: string;
     email: string;
   };
-  appointment?: {
-    id: number;
-    status: string;
-    service?: string;
-    client?: {
-      id: number;
-      name: string;
-      phone?: string;
-      email?: string;
-    };
-  };
+  appointment?: Appointment;
 }
 
 export interface CreateTimeSlotData {

@@ -67,16 +67,9 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const [showAddTimeModal, setShowAddTimeModal] = useState(false);
-  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [duration, setDuration] = useState('60');
-  const [notifications, setNotifications] = useState({
-    email: true,
-    sms: false,
-    push: true,
-    reminderTime: '15',
-  });
 
   useEffect(() => {
     loadData();
@@ -123,10 +116,6 @@ const Dashboard: React.FC = () => {
     navigate('/schedule');
   };
 
-  const handleNotificationsSettings = () => {
-    setShowNotificationsModal(true);
-  };
-
   const handleSaveTimeSlot = async () => {
     if (!selectedDate || !selectedTime) {
       toast.error('Заполните все поля');
@@ -150,18 +139,6 @@ const Dashboard: React.FC = () => {
       console.error('Error creating time slot:', error);
       toast.error(error.response?.data?.error || 'Ошибка создания слота');
     }
-  };
-
-  const handleSaveNotifications = () => {
-    console.log('Saving notifications:', notifications);
-    setShowNotificationsModal(false);
-  };
-
-  const handleNotificationChange = (setting: string, value: any) => {
-    setNotifications(prev => ({
-      ...prev,
-      [setting]: value
-    }));
   };
 
   if (!canViewDashboard) {
@@ -232,7 +209,7 @@ const Dashboard: React.FC = () => {
                       <div>
                         <div className="font-medium">{clientName}</div>
                         <div className="text-sm text-gray-500">
-                          {formatDateTime(a.date, a.time)} — {typeof a.service === 'string' ? a.service : a.service?.name || 'Консультация'}
+                          {formatDateTime(a.date, a.time)} — {a.service?.name || 'Консультация'}
                         </div>
                       </div>
                     </div>
@@ -259,12 +236,6 @@ const Dashboard: React.FC = () => {
               className="w-full py-2 px-4 bg-gray-100 text-gray-800 rounded-lg font-medium hover:bg-gray-200 transition flex items-center justify-center gap-2"
             >
               📅 Посмотреть календарь
-            </button>
-            <button 
-              onClick={handleNotificationsSettings}
-              className="w-full py-2 px-4 bg-gray-100 text-gray-800 rounded-lg font-medium hover:bg-gray-200 transition flex items-center justify-center gap-2"
-            >
-              🔔 Настройки уведомлений
             </button>
           </div>
         )}
@@ -330,93 +301,6 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Модальное окно настроек уведомлений */}
-      {showNotificationsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-            <h3 className="text-xl font-semibold mb-4">Настройки уведомлений</h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <div className="font-medium">Email уведомления</div>
-                  <div className="text-sm text-gray-500">Получать уведомления на email</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={notifications.email}
-                    onChange={(e) => handleNotificationChange('email', e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <div className="font-medium">SMS уведомления</div>
-                  <div className="text-sm text-gray-500">Получать SMS о важных событиях</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={notifications.sms}
-                    onChange={(e) => handleNotificationChange('sms', e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-              
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <div className="font-medium">Push уведомления</div>
-                  <div className="text-sm text-gray-500">Получать push-уведомления в браузере</div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={notifications.push}
-                    onChange={(e) => handleNotificationChange('push', e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Время напоминания</label>
-                <select
-                  value={notifications.reminderTime}
-                  onChange={(e) => handleNotificationChange('reminderTime', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="5">За 5 минут</option>
-                  <option value="15">За 15 минут</option>
-                  <option value="30">За 30 минут</option>
-                  <option value="60">За 1 час</option>
-                </select>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowNotificationsModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleSaveNotifications}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition"
-              >
-                Сохранить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

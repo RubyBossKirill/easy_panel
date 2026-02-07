@@ -1,8 +1,18 @@
 import api from '../utils/apiClient';
 import { Payment, CreatePaymentData, PaymentFilters } from '../types/payment';
 
+interface PaymentsListResponse {
+  payments: Payment[];
+  pagination: {
+    current_page: number;
+    per_page: number;
+    total_count: number;
+    total_pages: number;
+  };
+}
+
 export const paymentsService = {
-  getAll: async (filters?: PaymentFilters): Promise<Payment[]> => {
+  getAll: async (filters?: PaymentFilters): Promise<PaymentsListResponse> => {
     const params = new URLSearchParams();
     if (filters?.client_id) params.append('client_id', String(filters.client_id));
     if (filters?.appointment_id) params.append('appointment_id', String(filters.appointment_id));
@@ -12,26 +22,24 @@ export const paymentsService = {
 
     const query = params.toString();
     const response = await api.get(`/payments${query ? `?${query}` : ''}`);
-    return Array.isArray(response) ? response : response.data;
+    return api.extractData<PaymentsListResponse>(response);
   },
 
   getById: async (id: number): Promise<Payment> => {
     const response = await api.get(`/payments/${id}`);
-    return (response as any).id ? response : response.data;
+    return api.extractData<Payment>(response);
   },
 
   create: async (data: CreatePaymentData): Promise<Payment> => {
     const response = await api.post('/payments', { payment: data });
-    return (response as any).id ? response : response.data;
+    return api.extractData<Payment>(response);
   },
 
-  // Получить платеж по appointment_id
   getByAppointmentId: async (appointmentId: number): Promise<Payment | null> => {
     try {
-      const payments = await paymentsService.getAll({ appointment_id: appointmentId });
-      return payments.length > 0 ? payments[0] : null;
-    } catch (error) {
-      console.error('Ошибка получения платежа по appointment_id:', error);
+      const result = await paymentsService.getAll({ appointment_id: appointmentId });
+      return result.payments.length > 0 ? result.payments[0] : null;
+    } catch {
       return null;
     }
   },

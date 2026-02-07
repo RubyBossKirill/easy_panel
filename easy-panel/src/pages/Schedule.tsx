@@ -288,8 +288,7 @@ const Schedule: React.FC = () => {
         date: selectedTimeSlot.date,
         time: selectedTimeSlot.time,
         duration: selectedTimeSlot.duration,
-        service: appointmentForm.service,
-        service_id: appointmentForm.service_id, // Добавляем service_id
+        service_id: appointmentForm.service_id,
         notes: appointmentForm.notes,
         time_slot_id: selectedTimeSlot.id,
       });
@@ -501,7 +500,7 @@ const Schedule: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {timeSlots.map(slot => {
-                const appointment = appointments.find(a => a.time_slot?.id === slot.id);
+                const appointment = appointments.find(a => a.date === slot.date && a.time === slot.time);
                 const isOccupied = !!slot.appointment || !!appointment;
 
                 return (
@@ -524,9 +523,7 @@ const Schedule: React.FC = () => {
                             {slot.appointment?.client?.name || appointment?.client?.name}
                           </p>
                           <p className="text-gray-600">
-                            {typeof appointment?.service === 'string'
-                              ? appointment.service
-                              : appointment?.service?.name || 'Услуга не указана'}
+                            {appointment?.service?.name || 'Услуга не указана'}
                           </p>
                           {(slot.appointment?.status || appointment?.status) && (
                             <p className="text-xs mt-1">
@@ -788,9 +785,7 @@ const Schedule: React.FC = () => {
                 <p><span className="font-medium">Дата:</span> {formatDateTime(selectedAppointment.date, selectedAppointment.time)}</p>
                 <p>
                   <span className="font-medium">Услуга:</span>{' '}
-                  {typeof selectedAppointment.service === 'string'
-                    ? selectedAppointment.service
-                    : selectedAppointment.service?.name || 'Не указана'}
+                  {selectedAppointment.service?.name || 'Не указана'}
                 </p>
                 <p><span className="font-medium">Длительность:</span> {selectedAppointment.duration} мин</p>
                 {selectedAppointment.status && (
@@ -810,23 +805,23 @@ const Schedule: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Сумма:</span>
                     <div className="text-right">
-                      {appointmentPayment.discount_amount && appointmentPayment.discount_amount > 0 ? (
+                      {appointmentPayment.discount_amount && parseFloat(appointmentPayment.discount_amount) > 0 ? (
                         <>
-                          <span className="text-sm text-gray-500 line-through mr-2">{appointmentPayment.amount} ₽</span>
+                          <span className="text-sm text-gray-500 line-through mr-2">{parseFloat(appointmentPayment.amount).toLocaleString('ru-RU')} ₽</span>
                           <span className="text-lg font-bold text-green-600">
-                            {(appointmentPayment.amount - appointmentPayment.discount_amount).toFixed(1)} ₽
+                            {parseFloat(appointmentPayment.final_amount).toLocaleString('ru-RU')} ₽
                           </span>
                         </>
                       ) : (
-                        <span className="text-lg font-bold">{appointmentPayment.amount} ₽</span>
+                        <span className="text-lg font-bold">{parseFloat(appointmentPayment.amount).toLocaleString('ru-RU')} ₽</span>
                       )}
                     </div>
                   </div>
-                  {appointmentPayment.discount_amount && appointmentPayment.discount_amount > 0 && (
+                  {appointmentPayment.discount_amount && parseFloat(appointmentPayment.discount_amount) > 0 && (
                     <div className="flex justify-between items-center bg-green-50 -mx-4 px-4 py-2">
                       <span className="text-sm font-medium text-green-700">Скидка:</span>
                       <span className="text-sm font-medium text-green-700">
-                        -{appointmentPayment.discount_amount} ₽
+                        -{parseFloat(appointmentPayment.discount_amount).toLocaleString('ru-RU')} ₽
                         {appointmentPayment.discount_type === 'percent' && appointmentPayment.discount_value && (
                           <span className="text-xs ml-1">({appointmentPayment.discount_value}%)</span>
                         )}
@@ -914,8 +909,8 @@ const Schedule: React.FC = () => {
                             )}
                           </div>
                           {discountValue && parseFloat(discountValue) > 0 && selectedAppointment?.service && (() => {
-                            const servicePrice: number = typeof selectedAppointment.service === 'object' && selectedAppointment.service?.price
-                              ? Number(selectedAppointment.service.price)
+                            const servicePrice: number = selectedAppointment.service?.price
+                              ? parseFloat(selectedAppointment.service.price)
                               : 0;
                             const discountNum = parseFloat(discountValue);
                             return (
@@ -997,8 +992,8 @@ const Schedule: React.FC = () => {
                         )}
                       </div>
                       {discountValue && parseFloat(discountValue) > 0 && selectedAppointment?.service && (() => {
-                        const servicePrice: number = typeof selectedAppointment.service === 'object' && selectedAppointment.service?.price
-                          ? Number(selectedAppointment.service.price)
+                        const servicePrice: number = selectedAppointment.service?.price
+                          ? parseFloat(selectedAppointment.service.price)
                           : 0;
                         const discountNum = parseFloat(discountValue);
                         return (

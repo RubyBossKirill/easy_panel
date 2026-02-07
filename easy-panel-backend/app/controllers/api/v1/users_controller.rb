@@ -28,7 +28,7 @@ module Api
 
         render_success(
           {
-            users: UserSerializer.serialize_collection(@users),
+            users: UserSerializer.serialize_collection(@users, include: %i[role]),
             pagination: pagination_meta(@users)
           }
         )
@@ -40,7 +40,7 @@ module Api
         return render_forbidden(t_error('users.insufficient_permissions_view')) unless can_view_user?(@user)
 
         render_success(
-          { user: UserSerializer.serialize(@user, include_stats: true) }
+          { user: UserSerializer.serialize(@user, include: %i[role], include_stats: true) }
         )
       end
 
@@ -50,7 +50,7 @@ module Api
 
         if result.success?
           render_success(
-            { user: UserSerializer.serialize(result.data) },
+            { user: UserSerializer.serialize(result.data, include: %i[role]) },
             status: :created,
             message: t_message('user_created')
           )
@@ -76,7 +76,7 @@ module Api
 
         if result.success?
           render_success(
-            { user: UserSerializer.serialize(result.data) },
+            { user: UserSerializer.serialize(result.data, include: %i[role]) },
             message: t_message('user_updated')
           )
         else

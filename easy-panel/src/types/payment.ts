@@ -5,10 +5,11 @@ export interface Payment {
   client_id: number;
   appointment_id: number;
   service_id?: number;
-  amount: number;
+  amount: string;
   discount_type?: 'percent' | 'amount';
   discount_value?: number;
-  discount_amount?: number;
+  discount_amount?: string;
+  final_amount: string;
   status: 'pending' | 'paid' | 'cancelled' | 'failed';
   payment_method: 'online' | 'cash' | 'card' | 'transfer';
   payment_link?: string;

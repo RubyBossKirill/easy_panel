@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from '../utils/auth';
 import { hasPermission } from '../utils/permissions';
 import { DEFAULT_ROLES } from '../utils/permissions';
-import { clientsService, Client } from '../services/clientsService';
+import { clientsService } from '../services/clientsService';
+import { Client } from '../types/client';
 import toast from 'react-hot-toast';
 
 const Clients: React.FC = () => {
@@ -35,7 +36,7 @@ const Clients: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await clientsService.getClients({
+      const result = await clientsService.getClients({
         search: searchTerm || undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
@@ -43,11 +44,11 @@ const Clients: React.FC = () => {
         per_page: 25,
       });
 
-      setClients(response.data.clients);
-      setTotalPages(response.data.pagination.total_pages);
+      setClients(result.clients);
+      setTotalPages(result.pagination.total_pages);
     } catch (err: any) {
       console.error('Failed to load clients:', err);
-      setError(err.response?.data?.error || 'Не удалось загрузить клиентов');
+      setError(err.message || 'Не удалось загрузить клиентов');
     } finally {
       setLoading(false);
     }
@@ -91,7 +92,7 @@ const Clients: React.FC = () => {
       toast.success('Клиент успешно удалён');
       loadClients();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Не удалось удалить клиента');
+      toast.error(err.message || 'Не удалось удалить клиента');
     }
   };
 
@@ -109,7 +110,7 @@ const Clients: React.FC = () => {
       setFormData({ name: '', email: '', phone: '', telegram: '', notes: '' });
       loadClients();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Не удалось создать клиента');
+      toast.error(err.message || 'Не удалось создать клиента');
     }
   };
 
@@ -124,7 +125,7 @@ const Clients: React.FC = () => {
       setFormData({ name: '', email: '', phone: '', telegram: '', notes: '' });
       loadClients();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Не удалось обновить клиента');
+      toast.error(err.message || 'Не удалось обновить клиента');
     }
   };
 
@@ -146,10 +147,10 @@ const Clients: React.FC = () => {
 
   const openViewModal = async (clientId: number) => {
     try {
-      const response = await clientsService.getClient(clientId);
-      setViewClient(response.data.client);
+      const client = await clientsService.getClient(clientId);
+      setViewClient(client);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Не удалось загрузить данные клиента');
+      toast.error(err.message || 'Не удалось загрузить данные клиента');
     }
   };
 
@@ -621,24 +622,20 @@ const Clients: React.FC = () => {
                     <h3 className="text-lg font-semibold mb-4">Статистика</h3>
                     <div className="space-y-3">
                       <div>
-                        <span className="text-sm text-gray-500">Всего визитов:</span>
-                        <p className="text-gray-900 text-xl font-bold">{viewClient.stats.total_visits}</p>
+                        <span className="text-sm text-gray-500">Всего встреч:</span>
+                        <p className="text-gray-900 text-xl font-bold">{viewClient.stats.appointments_count}</p>
                       </div>
                       <div>
-                        <span className="text-sm text-gray-500">Ожидающих записей:</span>
-                        <p className="text-gray-900">{viewClient.stats.pending_appointments}</p>
+                        <span className="text-sm text-gray-500">Состоявшихся:</span>
+                        <p className="text-gray-900">{viewClient.stats.completed_appointments_count}</p>
                       </div>
                       <div>
-                        <span className="text-sm text-gray-500">Подтверждённых записей:</span>
-                        <p className="text-gray-900">{viewClient.stats.confirmed_appointments}</p>
+                        <span className="text-sm text-gray-500">Оплат:</span>
+                        <p className="text-gray-900">{viewClient.stats.payments_count}</p>
                       </div>
                       <div>
-                        <span className="text-sm text-gray-500">Последний визит:</span>
-                        <p className="text-gray-900">{viewClient.stats.last_visit || '—'}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-500">Всего потрачено:</span>
-                        <p className="text-gray-900 text-xl font-bold">{viewClient.stats.total_spent} ₽</p>
+                        <span className="text-sm text-gray-500">Всего оплачено:</span>
+                        <p className="text-gray-900 text-xl font-bold">{viewClient.stats.total_paid.toLocaleString('ru-RU')} ₽</p>
                       </div>
                     </div>
                   </div>
@@ -672,20 +669,18 @@ const Clients: React.FC = () => {
                           <tr key={apt.id}>
                             <td className="px-4 py-2">{apt.date}</td>
                             <td className="px-4 py-2">{apt.time}</td>
-                            <td className="px-4 py-2">{apt.service}</td>
+                            <td className="px-4 py-2">{apt.service?.name || '—'}</td>
                             <td className="px-4 py-2">
                               <span
                                 className={`px-2 py-1 rounded text-xs ${
                                   apt.status === 'completed'
                                     ? 'bg-green-100 text-green-800'
-                                    : apt.status === 'confirmed'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : apt.status === 'pending'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : 'bg-red-100 text-red-800'
+                                    : apt.status === 'cancelled'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-blue-100 text-blue-800'
                                 }`}
                               >
-                                {apt.status}
+                                {apt.status === 'completed' ? 'Состоялась' : apt.status === 'cancelled' ? 'Отменена' : 'Запланирована'}
                               </span>
                             </td>
                           </tr>
@@ -713,8 +708,8 @@ const Clients: React.FC = () => {
                         {viewClient.payments.map((payment) => (
                           <tr key={payment.id}>
                             <td className="px-4 py-2">{payment.paid_at}</td>
-                            <td className="px-4 py-2">{payment.service}</td>
-                            <td className="px-4 py-2 text-right font-semibold">{payment.amount} ₽</td>
+                            <td className="px-4 py-2">{payment.service?.name || '—'}</td>
+                            <td className="px-4 py-2 text-right font-semibold">{parseFloat(payment.amount).toLocaleString('ru-RU')} ₽</td>
                           </tr>
                         ))}
                       </tbody>

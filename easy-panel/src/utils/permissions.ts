@@ -93,14 +93,9 @@ export function getPermissionLabel(permission: Permission): string {
 export function hasPermission(user: User | null, roles: Role[] | null, permission: Permission): boolean {
   if (!user) return false;
 
-  // Если у пользователя есть объект роли из API (с правами)
   if (user.role && user.role.permissions) {
     return user.role.permissions.includes(permission);
   }
 
-  // Fallback на старую систему (для обратной совместимости)
-  const roleList = roles || DEFAULT_ROLES;
-  const roleId = user.roleId || String(user.role_id);
-  const role = roleList.find(r => String(r.id) === roleId);
-  return !!role && role.permissions.includes(permission);
+  return false;
 } 

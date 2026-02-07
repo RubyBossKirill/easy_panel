@@ -245,13 +245,29 @@ class ApiClient {
     localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
   }
 
-  // Legacy методы для обратной совместимости
-  setToken(token: string): void {
-    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+  /**
+   * Извлекает данные из стандартного ответа API: { status: true, data: ... }
+   * Выбрасывает ошибку если status === false
+   */
+  extractData<T>(response: ApiResponse<T>): T {
+    if (!response.status) {
+      const message = response.message || response.error || 'Произошла ошибка';
+      const error = new Error(message) as any;
+      error.code = response.code;
+      error.errors = response.errors;
+      throw error;
+    }
+    return response.data as T;
   }
 
-  removeToken(): void {
-    this.clearTokens();
+  /**
+   * Извлекает сообщение из ответа API (для операций без данных, например DELETE)
+   */
+  extractMessage(response: ApiResponse): string | undefined {
+    if (!response.status) {
+      throw new Error(response.message || response.error || 'Произошла ошибка');
+    }
+    return response.message;
   }
 }
 

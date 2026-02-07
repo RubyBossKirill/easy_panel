@@ -4,20 +4,20 @@ export interface Appointment {
   id: number;
   client_id: number;
   employee_id: number;
-  date: string;
-  time: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
   duration: number;
-  service?: string | Service;
   service_id?: number;
   status?: 'completed' | 'cancelled' | null;
   notes?: string;
   created_at: string;
   updated_at: string;
+  // Associations (приходят через include в serializer)
   client?: {
     id: number;
     name: string;
-    phone?: string;
     email?: string;
+    phone?: string;
     telegram?: string;
   };
   employee?: {
@@ -25,11 +25,13 @@ export interface Appointment {
     name: string;
     email: string;
   };
-  time_slot?: {
+  service?: Service;
+  payment?: {
     id: number;
-    start_time: string;
-    end_time: string;
-    date: string;
+    amount: string;
+    final_amount: string;
+    status: string;
+    payment_link?: string;
   };
 }
 
@@ -39,7 +41,6 @@ export interface CreateAppointmentData {
   date: string;
   time: string;
   duration: number;
-  service?: string;
   service_id?: number;
   status?: string;
   notes?: string;

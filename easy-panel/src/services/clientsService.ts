@@ -1,47 +1,5 @@
-import { apiClient } from '../utils/apiClient';
-
-interface ApiResponse<T = any> {
-  status: boolean;
-  data?: T;
-  message?: string;
-  errors?: any;
-  error?: string;
-  code?: string;
-}
-
-export interface Client {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  telegram: string;
-  notes: string;
-  created_by: number;
-  created_at: string;
-  updated_at: string;
-  stats?: {
-    total_visits: number;
-    pending_appointments: number;
-    confirmed_appointments: number;
-    last_visit: string | null;
-    total_spent: number;
-  };
-  appointments?: Array<{
-    id: number;
-    date: string;
-    time: string;
-    service: string;
-    status: string;
-    employee_id: number;
-  }>;
-  payments?: Array<{
-    id: number;
-    amount: number;
-    service: string;
-    paid_at: string;
-    employee_id: number;
-  }>;
-}
+import api from '../utils/apiClient';
+import { Client, CreateClientData } from '../types/client';
 
 export interface ClientsListParams {
   search?: string;
@@ -51,7 +9,7 @@ export interface ClientsListParams {
   per_page?: number;
 }
 
-export interface ClientsListData {
+interface ClientsListResponse {
   clients: Client[];
   pagination: {
     current_page: number;
@@ -61,91 +19,47 @@ export interface ClientsListData {
   };
 }
 
-export interface ClientsListResponse {
-  status: boolean;
-  data: ClientsListData;
-}
-
-export interface ClientData {
-  client: Client;
-}
-
-export interface ClientResponse {
-  status: boolean;
-  data: ClientData;
-  message?: string;
-}
-
 export const clientsService = {
-  /**
-   * Получить список всех клиентов (упрощенный метод)
-   */
-  async getAll(): Promise<Client[]> {
-    const response = await this.getClients();
-    // Backend returns {status: true, data: {clients: [...], ...}}
-    if (response.status && response.data && response.data.clients) {
-      return response.data.clients;
-    }
-    return [];
+  getAll: async (): Promise<Client[]> => {
+    const result = await clientsService.getClients();
+    return result.clients;
   },
 
-  /**
-   * Получить список клиентов
-   */
-  async getClients(params?: ClientsListParams): Promise<ClientsListResponse> {
+  getClients: async (params?: ClientsListParams): Promise<ClientsListResponse> => {
     const queryParams = new URLSearchParams();
-
     if (params?.search) queryParams.append('search', params.search);
     if (params?.sort_by) queryParams.append('sort_by', params.sort_by);
     if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
 
-    const url = `/clients${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const response = await apiClient.get<ClientsListData>(url);
-    return response as ClientsListResponse;
+    const query = queryParams.toString();
+    const response = await api.get(`/clients${query ? `?${query}` : ''}`);
+    return api.extractData<ClientsListResponse>(response);
   },
 
-  /**
-   * Получить клиента по ID
-   */
-  async getClient(id: number): Promise<ClientResponse> {
-    const response = await apiClient.get<ClientData>(`/clients/${id}`);
-    return response as ClientResponse;
+  getClient: async (id: number): Promise<Client> => {
+    const response = await api.get(`/clients/${id}`);
+    const result = api.extractData<{ client: Client }>(response);
+    return result.client;
   },
 
-  /**
-   * Создать нового клиента
-   */
-  async createClient(data: {
-    name: string;
-    email?: string;
-    phone?: string;
-    telegram?: string;
-    notes?: string;
-  }): Promise<ClientResponse> {
-    const response = await apiClient.post<ClientData>('/clients', { client: data });
-    return response as ClientResponse;
+  createClient: async (data: CreateClientData): Promise<Client> => {
+    const response = await api.post('/clients', { client: data });
+    const result = api.extractData<{ client: Client }>(response);
+    return result.client;
   },
 
-  /**
-   * Обновить клиента
-   */
-  async updateClient(id: number, data: {
-    name?: string;
-    email?: string;
-    phone?: string;
-    telegram?: string;
-    notes?: string;
-  }): Promise<ClientResponse> {
-    const response = await apiClient.put<ClientData>(`/clients/${id}`, { client: data });
-    return response as ClientResponse;
+  updateClient: async (id: number, data: Partial<CreateClientData>): Promise<Client> => {
+    const response = await api.put(`/clients/${id}`, { client: data });
+    const result = api.extractData<{ client: Client }>(response);
+    return result.client;
   },
 
-  /**
-   * Удалить клиента
-   */
-  async deleteClient(id: number): Promise<ApiResponse<any>> {
-    return apiClient.delete(`/clients/${id}`);
+  deleteClient: async (id: number): Promise<void> => {
+    const response = await api.delete(`/clients/${id}`);
+    if (!response.status && response.message) {
+      throw new Error(response.message);
+    }
   },
 };

@@ -7,6 +7,7 @@ import { usersService } from '../services/usersService';
 import { rolesService } from '../services/rolesService';
 import { useToast } from '../hooks/useToast';
 import ToastContainer from '../components/ToastContainer';
+import { STORAGE_KEYS } from '../config/api';
 
 const TABS = [
   { id: 'project', label: 'Название проекта' },
@@ -17,7 +18,7 @@ const TABS = [
 const AccountSettings: React.FC = () => {
   const user = getCurrentUser();
   const toast = useToast();
-  const [projectName, setProjectName] = useState('Easy Panel');
+  const [projectName, setProjectName] = useState(() => localStorage.getItem(STORAGE_KEYS.PROJECT_NAME) || 'Easy Panel');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -216,6 +217,16 @@ const AccountSettings: React.FC = () => {
             onChange={e => setProjectName(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent mb-4"
           />
+          <button
+            onClick={() => {
+              localStorage.setItem(STORAGE_KEYS.PROJECT_NAME, projectName);
+              toast.success('Название проекта сохранено');
+              window.dispatchEvent(new Event('projectNameChanged'));
+            }}
+            className="px-6 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-blue-700 transition text-sm shadow-sm"
+          >
+            Сохранить
+          </button>
         </div>
       )}
       {activeTab === 'users' && (
@@ -247,8 +258,6 @@ const AccountSettings: React.FC = () => {
                   </thead>
                 <tbody>
                   {users.map((u, idx) => {
-                    if (!u.role) return null; // Skip if role is undefined
-                    // Проверяем is_owner только из API (u.role.is_owner), игнорируя state roles
                     const isOwner = u.role?.is_owner === true;
                     return (
                       <tr key={u.id} className={
@@ -259,14 +268,14 @@ const AccountSettings: React.FC = () => {
                         <td className="px-3 py-2 align-middle text-sm whitespace-nowrap hidden sm:table-cell">{u.phone || '—'}</td>
                         <td className="px-3 py-2 align-middle">
                           <select
-                            value={u.role!.id}
+                            value={u.role?.id || u.role_id}
                             onChange={e => handleRoleChange(u.id, Number(e.target.value))}
                             className={`appearance-none w-full px-2 py-1.5 pr-6 border rounded text-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all min-w-[120px] ${isOwner ? 'bg-blue-100 text-blue-700 cursor-not-allowed' : 'bg-white hover:border-blue-400'}`}
                             disabled={isOwner}
                             style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'12\' height=\'12\' fill=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M3 4.5l3 3 3-3\' stroke=\'%236B7280\' stroke-width=\'1.5\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.75rem' }}
                           >
                             {isOwner ? (
-                              <option key={u.role!.id} value={u.role!.id}>{u.role!.name}</option>
+                              <option key={u.role?.id} value={u.role?.id}>{u.role?.name}</option>
                             ) : (
                               roles.filter(r => !r.isOwner && !r.is_owner).map(role => (
                                 <option key={role.id} value={role.id}>{role.name}</option>
