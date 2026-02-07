@@ -2,7 +2,7 @@ module Api
   module V1
     class WebhooksController < BaseController
       # Отключаем аутентификацию для webhook endpoints
-      skip_before_action :verify_authenticity_token, if: -> { request.format.json? }
+      skip_before_action :authenticate_request
       skip_before_action :authenticate_user!
 
       # POST /api/v1/webhooks/prodamus
