@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../utils/auth';
 import { hasPermission } from '../utils/permissions';
 import { DEFAULT_ROLES } from '../utils/permissions';
@@ -7,6 +8,7 @@ import { Client } from '../types/client';
 import toast from 'react-hot-toast';
 
 const Clients: React.FC = () => {
+  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -577,12 +579,20 @@ const Clients: React.FC = () => {
           <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b flex justify-between items-center">
               <h2 className="text-2xl font-bold">{viewClient.name}</h2>
-              <button
-                onClick={() => setViewClient(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setViewClient(null); navigate(`/clients/${viewClient.id}`); }}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                >
+                  Открыть профиль
+                </button>
+                <button
+                  onClick={() => setViewClient(null)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <div className="p-6">
               {/* Основная информация */}

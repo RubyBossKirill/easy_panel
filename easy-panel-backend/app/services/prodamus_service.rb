@@ -22,7 +22,12 @@ class ProdamusService
 
     begin
       # Отправляем GET запрос
-      response = Net::HTTP.get_response(uri)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = uri.scheme == 'https'
+      # В development отключаем проверку SSL (CRL недоступен локально)
+      http.verify_mode = Rails.env.development? ? OpenSSL::SSL::VERIFY_NONE : OpenSSL::SSL::VERIFY_PEER
+      request = Net::HTTP::Get.new(uri.request_uri)
+      response = http.request(request)
 
       if response.is_a?(Net::HTTPSuccess)
         # Парсим JSON ответ

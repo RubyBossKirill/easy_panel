@@ -518,10 +518,22 @@ const AccountSettings: React.FC = () => {
                       </button>
                       <button
                         className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition"
-                        onClick={() => {
+                        onClick={async () => {
                           if (!editRoleModal.role) return;
-                          setRoles(roles.map(r => r.id === editRoleModal.role!.id ? { ...r, permissions: editRoleModal.role!.permissions } : r));
-                          setEditRoleModal({ open: false, role: null });
+                          try {
+                            const response = await rolesService.updateRole(Number(editRoleModal.role.id), {
+                              permissions: editRoleModal.role.permissions,
+                            });
+                            if (response.status) {
+                              toast.success('Права роли обновлены');
+                              setEditRoleModal({ open: false, role: null });
+                              loadRoles();
+                            } else {
+                              toast.error(response.error || 'Не удалось обновить права');
+                            }
+                          } catch (err: any) {
+                            toast.error(err.message || 'Не удалось обновить права');
+                          }
                         }}
                       >
                         Сохранить

@@ -855,10 +855,10 @@ const Schedule: React.FC = () => {
                   {/* Ссылка на оплату */}
                   {appointmentPayment.status === 'pending' && (
                     <div className="mt-4">
-                      {appointmentPayment.payment_link && (
+                      {appointmentPayment.payment_link ? (
                         <>
                           <label className="block text-sm font-medium mb-2">Ссылка на оплату:</label>
-                          <div className="flex gap-2 mb-3">
+                          <div className="flex gap-2 mb-2">
                             <input
                               type="text"
                               value={appointmentPayment.payment_link}
@@ -867,78 +867,77 @@ const Schedule: React.FC = () => {
                             />
                             <button
                               onClick={handleCopyPaymentLink}
-                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm whitespace-nowrap"
                             >
                               📋 Копировать
                             </button>
                           </div>
+                          <p className="text-xs text-gray-500 mb-3">Отправьте эту ссылку клиенту для оплаты</p>
+                          <button
+                            onClick={handleGeneratePaymentLink}
+                            disabled={generatingPaymentLink}
+                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm disabled:opacity-50"
+                          >
+                            {generatingPaymentLink ? '⏳ Генерация...' : '🔄 Перегенерировать ссылку'}
+                          </button>
                         </>
-                      )}
-
-                      {/* Поля для ввода скидки */}
-                      {!appointmentPayment?.payment_link && (
-                        <div className="mb-3 p-3 bg-gray-50 rounded border">
-                          <label className="block text-sm font-medium mb-2">Скидка (опционально):</label>
-                          <div className="flex gap-2 items-center">
-                            <select
-                              value={discountType}
-                              onChange={(e) => setDiscountType(e.target.value as 'percent' | 'amount')}
-                              className="px-3 py-2 border rounded text-sm"
-                            >
-                              <option value="percent">Проценты (%)</option>
-                              <option value="amount">Сумма (₽)</option>
-                            </select>
-                            <input
-                              type="number"
-                              value={discountValue}
-                              onChange={(e) => setDiscountValue(e.target.value)}
-                              placeholder={discountType === 'percent' ? 'Введите %' : 'Введите сумму'}
-                              min="0"
-                              max={discountType === 'percent' ? '100' : undefined}
-                              step="0.01"
-                              className="flex-1 px-3 py-2 border rounded text-sm"
-                            />
-                            {discountValue && parseFloat(discountValue) > 0 && (
-                              <button
-                                onClick={() => setDiscountValue('')}
-                                className="px-2 py-2 text-gray-500 hover:text-gray-700"
-                                title="Очистить скидку"
+                      ) : (
+                        <>
+                          {/* Поля для ввода скидки */}
+                          <div className="mb-3 p-3 bg-gray-50 rounded border">
+                            <label className="block text-sm font-medium mb-2">Скидка (опционально):</label>
+                            <div className="flex gap-2 items-center">
+                              <select
+                                value={discountType}
+                                onChange={(e) => setDiscountType(e.target.value as 'percent' | 'amount')}
+                                className="px-3 py-2 border rounded text-sm"
                               >
-                                ✕
-                              </button>
-                            )}
+                                <option value="percent">Проценты (%)</option>
+                                <option value="amount">Сумма (₽)</option>
+                              </select>
+                              <input
+                                type="number"
+                                value={discountValue}
+                                onChange={(e) => setDiscountValue(e.target.value)}
+                                placeholder={discountType === 'percent' ? 'Введите %' : 'Введите сумму'}
+                                min="0"
+                                max={discountType === 'percent' ? '100' : undefined}
+                                step="0.01"
+                                className="flex-1 px-3 py-2 border rounded text-sm"
+                              />
+                              {discountValue && parseFloat(discountValue) > 0 && (
+                                <button
+                                  onClick={() => setDiscountValue('')}
+                                  className="px-2 py-2 text-gray-500 hover:text-gray-700"
+                                  title="Очистить скидку"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                            {discountValue && parseFloat(discountValue) > 0 && selectedAppointment?.service && (() => {
+                              const servicePrice: number = selectedAppointment.service?.price
+                                ? parseFloat(selectedAppointment.service.price)
+                                : 0;
+                              const discountNum = parseFloat(discountValue);
+                              return (
+                                <p className="text-xs text-gray-600 mt-2">
+                                  {discountType === 'percent'
+                                    ? `Скидка ${discountValue}% = ${(servicePrice * discountNum / 100).toFixed(2)} ₽`
+                                    : `Скидка ${discountValue} ₽`}
+                                </p>
+                              );
+                            })()}
                           </div>
-                          {discountValue && parseFloat(discountValue) > 0 && selectedAppointment?.service && (() => {
-                            const servicePrice: number = selectedAppointment.service?.price
-                              ? parseFloat(selectedAppointment.service.price)
-                              : 0;
-                            const discountNum = parseFloat(discountValue);
-                            return (
-                              <p className="text-xs text-gray-600 mt-2">
-                                {discountType === 'percent'
-                                  ? `Скидка ${discountValue}% = ${(servicePrice * discountNum / 100).toFixed(2)} ₽`
-                                  : `Скидка ${discountValue} ₽`}
-                              </p>
-                            );
-                          })()}
-                        </div>
-                      )}
 
-                      <button
-                        onClick={handleGeneratePaymentLink}
-                        disabled={generatingPaymentLink}
-                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {generatingPaymentLink
-                          ? '⏳ Генерация...'
-                          : appointmentPayment.payment_link
-                            ? '🔄 Перегенерировать ссылку'
-                            : '🔗 Сгенерировать ссылку'}
-                      </button>
-                      {appointmentPayment.payment_link && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          Отправьте эту ссылку клиенту для оплаты
-                        </p>
+                          <button
+                            onClick={handleGeneratePaymentLink}
+                            disabled={generatingPaymentLink}
+                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {generatingPaymentLink ? '⏳ Генерация...' : '🔗 Сгенерировать ссылку'}
+                          </button>
+                        </>
                       )}
                     </div>
                   )}
